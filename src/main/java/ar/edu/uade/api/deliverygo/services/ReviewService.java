@@ -21,6 +21,7 @@ import ar.edu.uade.api.deliverygo.model.TipoObjetivo;
 import ar.edu.uade.api.deliverygo.repository.ResenaRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ar.edu.uade.api.deliverygo.mapper.ResenaMapper;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -74,11 +75,11 @@ public class ReviewService {
         validarPuntuacion(resenaRequest.getPuntuacion());
 
         // Guardar Reseña
-        Resena resena = new Resena(usuarioIdAutenticado, resenaRequest.getPedidoId(), resenaRequest.getTipoObjetivo(), objetivoId, resenaRequest.getPuntuacion(), resenaRequest.getComentario());
+        Resena resena = ResenaMapper.toEntity(resenaRequest, usuarioIdAutenticado, objetivoId);
         resenaRepository.save(resena);
 
         // Devolver a controller
-        return toResponse(resena);
+        return ResenaMapper.toResponse(resena);
     }
 
     //Obtener ID según el tipoObjetivo
@@ -121,11 +122,6 @@ public class ReviewService {
         if (puntuacion == null || puntuacion < 1 || puntuacion > 5) {
             throw new InvalidRatingException("La puntuación debe estar entre 1 y 5");
         }
-    }
-
-    private ResenaResponse toResponse(Resena resena) {
-        //Generar respuesta para el controller
-        return new ResenaResponse(resena.getId(), resena.getUsuarioId(), resena.getPedidoId(), resena.getTipoObjetivo(), resena.getObjetivoId(), resena.getPuntuacion(), resena.getComentario(), resena.getFechaCreacion());
     }
 
     // SRV-02 (CU-03, CU-04)
