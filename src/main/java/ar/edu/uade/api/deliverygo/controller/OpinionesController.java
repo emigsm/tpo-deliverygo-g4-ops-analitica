@@ -1,28 +1,30 @@
 package ar.edu.uade.api.deliverygo.controller;
 
+import ar.edu.uade.api.deliverygo.dto.DashboardResponse;
 import ar.edu.uade.api.deliverygo.dto.RatingResponse;
 import ar.edu.uade.api.deliverygo.dto.ResenaRequest;
 import ar.edu.uade.api.deliverygo.dto.ResenaResponse;
 import ar.edu.uade.api.deliverygo.model.TipoObjetivo;
+import ar.edu.uade.api.deliverygo.services.AnalyticsService;
 import ar.edu.uade.api.deliverygo.services.ReviewService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/v1")
 public class OpinionesController {
 
     private final ReviewService reviewService;
+    private final AnalyticsService analyticsService;
 
-    public OpinionesController(ReviewService reviewService) {
+    public OpinionesController(ReviewService reviewService, AnalyticsService analyticsService) {
         this.reviewService = reviewService;
+        this.analyticsService = analyticsService;
     }
 
     // API-01 (CU-01, CU-02)
@@ -51,4 +53,13 @@ public class OpinionesController {
         return ResponseEntity.ok(reviewService.obtenerPromedio(TipoObjetivo.REPARTIDOR, id));
 
     }
+
+    @GetMapping("/analytics/dashboard")
+    public ResponseEntity<DashboardResponse> obtenerTablero(
+            @RequestParam("desde") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam("hasta") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta){
+
+        return ResponseEntity.ok(analyticsService.generarTablero(desde, hasta));
+    }
+
 }

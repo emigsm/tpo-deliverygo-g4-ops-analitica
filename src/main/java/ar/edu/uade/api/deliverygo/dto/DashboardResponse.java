@@ -6,13 +6,13 @@ import java.util.List;
 public class DashboardResponse {
 
     private LocalDateTime generadoEn;
-    private List<MetricaResumen> metricas;
+    private List<ar.edu.uade.api.deliverygo.dto.MetricaResumen> metricas;
     private boolean parcial; //DM-09
 
     public DashboardResponse() {
     }
 
-    public DashboardResponse(LocalDateTime generadoEn, List<MetricaResumen> metricas, boolean parcial) {
+    public DashboardResponse(LocalDateTime generadoEn, List<ar.edu.uade.api.deliverygo.dto.MetricaResumen> metricas, boolean parcial) {
         this.generadoEn = generadoEn;
         this.metricas = metricas;
         this.parcial = parcial;
@@ -26,11 +26,11 @@ public class DashboardResponse {
         this.generadoEn = generadoEn;
     }
 
-    public List<MetricaResumen> getMetricas() {
+    public List<ar.edu.uade.api.deliverygo.dto.MetricaResumen> getMetricas() {
         return metricas;
     }
 
-    public void setMetricas(List<MetricaResumen> metricas) {
+    public void setMetricas(List<ar.edu.uade.api.deliverygo.dto.MetricaResumen> metricas) {
         this.metricas = metricas;
     }
 

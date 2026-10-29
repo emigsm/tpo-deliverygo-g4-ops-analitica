@@ -36,7 +36,7 @@ public class GlobalExceptionHandler {
             DuplicateReviewException ex, HttpServletRequest request) {
         return construir(HttpStatus.CONFLICT, ex, request);
     }
-
+    //el error es del cliente
     @ExceptionHandler(InvalidRatingException.class)
     public ResponseEntity<ErrorResponseDTO> manejarInvalidRating(
             InvalidRatingException ex, HttpServletRequest request) {
@@ -48,6 +48,15 @@ public class GlobalExceptionHandler {
             ExternalServiceUnavailableException ex, HttpServletRequest request) {
         return construir(HttpStatus.SERVICE_UNAVAILABLE, ex, request);
     }
+
+
+     //400 (BAD_REQUEST) el error es del cliente,
+    @ExceptionHandler(InvalidPeriodException.class)
+    public ResponseEntity<ErrorResponseDTO> manejarInvalidPeriod(
+            InvalidPeriodException ex, HttpServletRequest request){
+        return construir(HttpStatus.BAD_REQUEST, ex, request);
+    }
+
 
     private ResponseEntity<ErrorResponseDTO> construir(
             HttpStatus status, RuntimeException ex, HttpServletRequest request) {
