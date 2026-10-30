@@ -19,7 +19,7 @@ public class MetricaResumen {
     private LocalDate periodoDesde;
     @Schema(description = "Fin del período incluido", example = "2025-01-31")
     private LocalDate periodoHasta;
-    @Schema(description = "Valor calculado para la métrica", example = "25.00")
+    @Schema(description = "Valor de la métrica; null exclusivamente para PROMEDIO_CALIFICACION sin reseñas. Ese promedio no se persiste.", nullable = true, example = "25.00")
     private BigDecimal valor;
 
     public MetricaResumen() {

@@ -38,8 +38,11 @@ public class AnalyticsService {
     @Transactional
     public DashboardResponse generarTablero(LocalDate desde, LocalDate hasta){
 
-        //1- validacion del periodo
-        if(desde==null || hasta ==null || desde.isAfter(hasta)){
+        // CU-05: cada extremo omitido toma la fecha actual del servidor.
+        LocalDate hoy = LocalDate.now();
+        desde = desde == null ? hoy : desde;
+        hasta = hasta == null ? hoy : hasta;
+        if (desde.isAfter(hasta)) {
             throw  new InvalidPeriodException("El periodo es invalido");
         }
         List<MetricaResumen> metricas = new ArrayList<>();
@@ -61,14 +64,32 @@ public class AnalyticsService {
             metricas.add(guardarSnapshot(FuenteMetrica.RESENAS, TipoMetrica.PROMEDIO_CALIFICACION,
                     desde, hasta, promedio));
 
+        } else {
+            // Un promedio sin observaciones no se persiste: Metrica.valor es NOT NULL.
+            metricas.add(new MetricaResumen(FuenteMetrica.RESENAS, TipoMetrica.PROMEDIO_CALIFICACION,
+                    desde, hasta, null));
         }
 
-        //4- fuente pedidos, si el módulo falla, el tablero sale
+        // INT-05 (propuesto): consumir exclusivamente estadísticas agregadas.
         try {
             OrdersStatsDTO stats = pedidosClient.obtenerEstadisticas("ENTREGADO", desde, hasta);
+            if (stats == null || stats.getCantidad() == null || stats.getCantidad() < 0
+                    || !"ENTREGADO".equals(stats.getEstado())
+                    || !desde.equals(stats.getPeriodoDesde()) || !hasta.equals(stats.getPeriodoHasta())) {
+                throw new ExternalServiceUnavailableException("Pedidos devolvió estadísticas inválidas");
+            }
             metricas.add(guardarSnapshot(FuenteMetrica.PEDIDOS, TipoMetrica.PEDIDOS_ENTREGADOS,
                     desde, hasta, BigDecimal.valueOf(stats.getCantidad())));
         } catch (ExternalServiceUnavailableException e) {
+            // RN-03/RN-06: únicamente aplica el snapshot de la misma fuente, tipo y período.
+            Metrica snapshot = metricaRepository
+                    .findByFuenteAndTipoMetricaAndPeriodoDesdeAndPeriodoHasta(
+                            FuenteMetrica.PEDIDOS, TipoMetrica.PEDIDOS_ENTREGADOS, desde, hasta)
+                    .filter(metrica -> metrica.getValor() != null && metrica.getValor().signum() >= 0)
+                    .orElseThrow(() -> new ExternalServiceUnavailableException(
+                            "Pedidos no disponible y no existe un snapshot válido para el período solicitado"));
+            metricas.add(new MetricaResumen(snapshot.getFuente(), snapshot.getTipoMetrica(),
+                    snapshot.getPeriodoDesde(), snapshot.getPeriodoHasta(), snapshot.getValor()));
             parcial = true;
         }
 
