@@ -19,9 +19,9 @@ public class ResenaResponse {
     private Long objetivoId;
     @Schema(description = "Puntuación otorgada", example = "5")
     private Integer puntuacion;
-    @Schema(description = "Comentario de la reseña", example = "Entrega rápida y atención cordial")
+    @Schema(nullable = true, description = "Comentario de la reseña", example = "Entrega rápida y atención cordial")
     private String comentario;
-    @Schema(description = "Fecha y hora de creación", example = "2025-01-31T14:30:00")
+    @Schema(type = "string", format = "local-date-time", description = "Fecha y hora de creación", example = "2025-01-31T14:30:00")
     private LocalDateTime fechaCreacion;
 
     public ResenaResponse() {

@@ -31,9 +31,15 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 
 @RestController
-@RequestMapping("/api/v1")
+@RequestMapping(value = "/api/v1", produces = "application/json")
 @Tag(name = "Opiniones", description = "Creación de reseñas y consulta de rating promedio")
 public class OpinionesController {
+
+    // Documentation-only schema: Spring Boot /error, not a controller response DTO.
+    @Schema(name = "SpringBootError", description = "Respuesta JSON de Spring Boot para errores de binding; no es ErrorResponseDTO",
+            requiredProperties = {"timestamp", "status", "error", "path"})
+    public record SpringBootErrorSchema(java.time.Instant timestamp, int status, String error, String path) {}
+
 
     private final ReviewService reviewService;
     private final AnalyticsService analyticsService;
@@ -55,15 +61,15 @@ public class OpinionesController {
                     "tienen restricciones Bean Validation declaradas.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Reseña creada",
-                    content = @Content(schema = @Schema(implementation = ResenaResponse.class))),
-            @ApiResponse(responseCode = "400", description = "Puntuación nula o fuera del rango 1 a 5",
-                    content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResenaResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Puntuación nula o fuera del rango 1 a 5 (ErrorResponseDTO); body/header inválido (Spring Boot)",
+                    content = @Content(mediaType = "application/json", schema = @Schema(oneOf = {ErrorResponseDTO.class, SpringBootErrorSchema.class}))),
             @ApiResponse(responseCode = "409", description = "Ya existe una reseña del usuario para ese pedido y tipo",
-                    content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseDTO.class))),
             @ApiResponse(responseCode = "422", description = "El pedido no existe o no fue entregado, no pertenece al usuario, o el usuario/objetivo no existe o está inactivo",
-                    content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseDTO.class))),
             @ApiResponse(responseCode = "503", description = "Un servicio externo requerido no está disponible",
-                    content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class)))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
 
     @PostMapping("/reviews")
@@ -71,7 +77,7 @@ public class OpinionesController {
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                     description = "Datos de la reseña. El DTO no declara restricciones Bean Validation.",
                     required = true,
-                    content = @Content(schema = @Schema(implementation = ResenaRequest.class)))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ResenaRequest.class)))
             @RequestBody ResenaRequest resenaRequest,
             @Parameter(name = "X-Usuario-Id", in = ParameterIn.HEADER, required = true,
                     description = "Id del usuario que realiza la operación. Header temporal hasta integrar JWT.",
@@ -87,7 +93,7 @@ public class OpinionesController {
     @Operation(summary = "Calificación promedio de un comercio",
             description = "CU-03: consulta la calificación promedio y la cantidad de reseñas del comercio.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Calificación calculada. Si no hay reseñas, promedio es null y cantidadResenas es 0.",
-            content = @Content(schema = @Schema(implementation = RatingResponse.class)))})
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = RatingResponse.class)))})
 
     @GetMapping("/merchants/{id}/rating")
     public ResponseEntity<RatingResponse> obtenerRatingComercio(
@@ -102,7 +108,7 @@ public class OpinionesController {
     @Operation(summary = "Calificación promedio de un repartidor",
             description = "CU-04: consulta la calificación promedio y la cantidad de reseñas del repartidor.")
     @ApiResponses({@ApiResponse(responseCode = "200", description = "Calificación calculada. Si no hay reseñas, promedio es null y cantidadResenas es 0.",
-            content = @Content(schema = @Schema(implementation = RatingResponse.class)))})
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = RatingResponse.class)))})
     @GetMapping("/couriers/{id}/rating")
     public ResponseEntity<RatingResponse> obtenerRatingRepartidor(
             @Parameter(description = "Id del repartidor", required = true, example = "20")
@@ -120,11 +126,12 @@ public class OpinionesController {
                     "y responde con parcial=true; sin respaldo válido responde 503.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Tablero generado; parcial=true indica uso de un snapshot de Pedidos",
-                    content = @Content(schema = @Schema(implementation = DashboardResponse.class))),
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = DashboardResponse.class))),
             @ApiResponse(responseCode = "400", description = "Período invertido o fecha con formato inválido. " +
-                    "El período invertido usa ErrorResponseDTO; el formato inválido usa la respuesta estándar de Spring."),
+                    "El período invertido usa ErrorResponseDTO; el formato inválido usa la respuesta estándar de Spring.",
+                    content = @Content(mediaType = "application/json", schema = @Schema(oneOf = {ErrorResponseDTO.class, SpringBootErrorSchema.class}))),
             @ApiResponse(responseCode = "503", description = "Pedidos no disponible o respuesta inválida, sin snapshot válido del período exacto",
-                    content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class)))
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
     @GetMapping("/analytics/dashboard")
     public ResponseEntity<DashboardResponse> obtenerTablero(

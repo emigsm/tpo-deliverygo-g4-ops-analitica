@@ -38,6 +38,9 @@ para aislar integraciones. [Arquitectura y decisiones](docs/arquitectura.md).
 
 [Swagger UI](http://localhost:8089/swagger-ui.html).
 [Contratos, ejemplos y exportación OpenAPI](docs/api/README.md).
+[OpenAPI implementado](docs/api/openapi.yaml) ·
+[Evolución propuesta API-05/06](docs/api/openapi-evolucion-propuesta.yaml).
+Los errores manejados cambian de contrato: [migración de clientes](docs/api/README.md#cambio-incompatible-del-contrato-de-errores).
 
 ## Instalación y ejecución
 

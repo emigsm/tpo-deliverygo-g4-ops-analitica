@@ -1,0 +1,591 @@
+openapi: 3.1.0
+info:
+  title: DeliveryGo API - Opiniones y Analítica
+  description: "API-01 a API-04 implementadas. Integraciones externas mock. Spring\
+    \ Security autoconfigurado: HTTP Basic o sesión de formulario y CSRF en POST.\
+    \ X-Usuario-Id es identidad de negocio temporal, no autentica. JWT Bearer es futuro.\
+    \ API-05/06 se documentan exclusivamente en openapi-evolucion-propuesta.yaml.\
+    \ Cambio incompatible: errores manejados usan code/message en lugar de error/mensaje,\
+    \ timestamp UTC y correlationId. Errores del framework y seguridad conservan su\
+    \ formato."
+  version: "1.0"
+servers:
+- url: http://localhost:18092
+  description: Generated server url
+security:
+- basicAuth: []
+tags:
+- name: Opiniones
+  description: Creación de reseñas y consulta de rating promedio
+paths:
+  /api/v1/reviews:
+    post:
+      tags:
+      - Opiniones
+      summary: Crear reseña
+      description: "CU-01 y CU-02: registra una reseña de comercio o repartidor para\
+        \ un pedido entregado. La identidad del usuario se recibe temporalmente en\
+        \ X-Usuario-Id; se reemplazará al integrar JWT. La puntuación se valida en\
+        \ el servicio y debe estar entre 1 y 5; los demás campos del DTO no tienen\
+        \ restricciones Bean Validation declaradas."
+      operationId: crearResena
+      parameters:
+      - name: X-Usuario-Id
+        in: header
+        description: Id del usuario que realiza la operación. Header temporal hasta
+          integrar JWT.
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 100
+      - name: X-Correlation-Id
+        in: header
+        description: UUID canónico opcional. Solo errores manejados lo reutilizan;
+          ausente o inválido genera UUID.
+        required: false
+        schema:
+          type: string
+      requestBody:
+        description: Datos de la reseña. El DTO no declara restricciones Bean Validation.
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResenaRequest"
+        required: true
+      responses:
+        "201":
+          description: Reseña creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResenaResponse"
+              examples:
+                creada:
+                  value:
+                    id: 1
+                    usuarioId: 100
+                    pedidoId: 1
+                    tipoObjetivo: COMERCIO
+                    objetivoId: 10
+                    puntuacion: 5
+                    comentario: Buena atención
+                    fechaCreacion: 2026-10-30T12:00:00
+        "400":
+          description: Puntuación nula o fuera del rango 1 a 5 (ErrorResponseDTO);
+            body/header inválido (Spring Boot)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: "#/components/schemas/ErrorResponseDTO"
+                - $ref: "#/components/schemas/SpringBootError"
+              examples:
+                negocio:
+                  value:
+                    timestamp: 2026-10-30T12:00:00Z
+                    status: 400
+                    code: INVALID_RATING
+                    message: La puntuación debe estar entre 1 y 5
+                    path: /api/v1/reviews
+                    correlationId: 2aa05de5-76a4-46e3-a7a1-e4572cf602a6
+        "409":
+          description: Ya existe una reseña del usuario para ese pedido y tipo
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+              examples:
+                negocio:
+                  value:
+                    timestamp: 2026-10-30T12:00:00Z
+                    status: 409
+                    code: DUPLICATE_REVIEW
+                    message: Ya existe una reseña para ese pedido y tipo
+                    path: /api/v1/reviews
+                    correlationId: 2aa05de5-76a4-46e3-a7a1-e4572cf602a6
+        "422":
+          description: "El pedido no existe o no fue entregado, no pertenece al usuario,\
+            \ o el usuario/objetivo no existe o está inactivo"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+              examples:
+                negocio:
+                  value:
+                    timestamp: 2026-10-30T12:00:00Z
+                    status: 422
+                    code: BUSINESS_RULE_VIOLATION
+                    message: El pedido no fue entregado
+                    path: /api/v1/reviews
+                    correlationId: 2aa05de5-76a4-46e3-a7a1-e4572cf602a6
+        "503":
+          description: Un servicio externo requerido no está disponible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+              examples:
+                negocio:
+                  value:
+                    timestamp: 2026-10-30T12:00:00Z
+                    status: 503
+                    code: EXTERNAL_SERVICE_UNAVAILABLE
+                    message: Servicio externo no disponible
+                    path: /api/v1/reviews
+                    correlationId: 2aa05de5-76a4-46e3-a7a1-e4572cf602a6
+        "401":
+          description: "Spring Security: autenticación requerida o credenciales invá\
+            lidas (Accept: application/json). No garantiza ErrorResponseDTO."
+        "403":
+          description: "Spring Security: POST sin token CSRF válido, incluso con HTTP\
+            \ Basic. No garantiza ErrorResponseDTO."
+  /api/v1/merchants/{id}/rating:
+    get:
+      tags:
+      - Opiniones
+      summary: Calificación promedio de un comercio
+      description: "CU-03: consulta la calificación promedio y la cantidad de reseñ\
+        as del comercio."
+      operationId: obtenerRatingComercio
+      parameters:
+      - name: id
+        in: path
+        description: Id del comercio
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 10
+      - name: X-Correlation-Id
+        in: header
+        description: UUID canónico opcional. Solo errores manejados lo reutilizan;
+          ausente o inválido genera UUID.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "Calificación calculada. Si no hay reseñas, promedio es null\
+            \ y cantidadResenas es 0."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RatingResponse"
+              examples:
+                conResenas:
+                  value:
+                    objetivoId: 10
+                    tipoObjetivo: COMERCIO
+                    promedio: 4.75
+                    cantidadResenas: 4
+                sinResenas:
+                  value:
+                    objetivoId: 10
+                    tipoObjetivo: COMERCIO
+                    promedio: null
+                    cantidadResenas: 0
+        "401":
+          description: "Spring Security: autenticación requerida o credenciales invá\
+            lidas (Accept: application/json). No garantiza ErrorResponseDTO."
+  /api/v1/couriers/{id}/rating:
+    get:
+      tags:
+      - Opiniones
+      summary: Calificación promedio de un repartidor
+      description: "CU-04: consulta la calificación promedio y la cantidad de reseñ\
+        as del repartidor."
+      operationId: obtenerRatingRepartidor
+      parameters:
+      - name: id
+        in: path
+        description: Id del repartidor
+        required: true
+        schema:
+          type: integer
+          format: int64
+        example: 20
+      - name: X-Correlation-Id
+        in: header
+        description: UUID canónico opcional. Solo errores manejados lo reutilizan;
+          ausente o inválido genera UUID.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: "Calificación calculada. Si no hay reseñas, promedio es null\
+            \ y cantidadResenas es 0."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RatingResponse"
+              examples:
+                conResenas:
+                  value:
+                    objetivoId: 20
+                    tipoObjetivo: REPARTIDOR
+                    promedio: 4.75
+                    cantidadResenas: 4
+                sinResenas:
+                  value:
+                    objetivoId: 20
+                    tipoObjetivo: REPARTIDOR
+                    promedio: null
+                    cantidadResenas: 0
+        "401":
+          description: "Spring Security: autenticación requerida o credenciales invá\
+            lidas (Accept: application/json). No garantiza ErrorResponseDTO."
+  /api/v1/analytics/dashboard:
+    get:
+      tags:
+      - Opiniones
+      summary: Consultar tablero de analítica
+      description: "CU-05, RN-03 y RN-06: obtiene cantidad de reseñas, promedio de\
+        \ calificación y pedidos entregados. Cada fecha omitida toma la fecha actual\
+        \ del servidor; ambos extremos son inclusivos. Sin reseñas, el promedio es\
+        \ null y no se persiste. INT-05 es un contrato propuesto pendiente de confirmació\
+        n con Pedidos. Si falla esa fuente, usa exclusivamente el snapshot del perí\
+        odo exacto y responde con parcial=true; sin respaldo válido responde 503."
+      operationId: obtenerTablero
+      parameters:
+      - name: periodoDesde
+        in: query
+        description: "Inicio inclusivo, ISO-8601 (yyyy-MM-dd). Si se omite, fecha\
+          \ actual del servidor"
+        required: false
+        schema:
+          type: string
+          format: date
+        example: 2025-01-01
+      - name: periodoHasta
+        in: query
+        description: "Fin inclusivo, ISO-8601 (yyyy-MM-dd). Si se omite, fecha actual\
+          \ del servidor. Debe ser igual o posterior a periodoDesde."
+        required: false
+        schema:
+          type: string
+          format: date
+        example: 2025-01-31
+      - name: X-Correlation-Id
+        in: header
+        description: UUID canónico opcional. Solo errores manejados lo reutilizan;
+          ausente o inválido genera UUID.
+        required: false
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Tablero generado; parcial=true indica uso de un snapshot de
+            Pedidos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardResponse"
+              examples:
+                completo:
+                  value:
+                    generadoEn: 2026-10-30T12:00:00
+                    metricas:
+                    - fuente: RESENAS
+                      tipoMetrica: CANTIDAD_RESENAS
+                      periodoDesde: 2026-10-01
+                      periodoHasta: 2026-10-30
+                      valor: 0
+                    - fuente: RESENAS
+                      tipoMetrica: PROMEDIO_CALIFICACION
+                      periodoDesde: 2026-10-01
+                      periodoHasta: 2026-10-30
+                      valor: null
+                    - fuente: PEDIDOS
+                      tipoMetrica: PEDIDOS_ENTREGADOS
+                      periodoDesde: 2026-10-01
+                      periodoHasta: 2026-10-30
+                      valor: 2
+                    parcial: false
+                respaldoPeriodoExacto:
+                  value:
+                    generadoEn: 2026-10-30T12:00:00
+                    metricas:
+                    - fuente: RESENAS
+                      tipoMetrica: CANTIDAD_RESENAS
+                      periodoDesde: 2026-10-01
+                      periodoHasta: 2026-10-30
+                      valor: 0
+                    - fuente: RESENAS
+                      tipoMetrica: PROMEDIO_CALIFICACION
+                      periodoDesde: 2026-10-01
+                      periodoHasta: 2026-10-30
+                      valor: null
+                    - fuente: PEDIDOS
+                      tipoMetrica: PEDIDOS_ENTREGADOS
+                      periodoDesde: 2026-10-01
+                      periodoHasta: 2026-10-30
+                      valor: 2
+                    parcial: true
+        "400":
+          description: Período invertido o fecha con formato inválido. El período
+            invertido usa ErrorResponseDTO; el formato inválido usa la respuesta estándar
+            de Spring.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: "#/components/schemas/ErrorResponseDTO"
+                - $ref: "#/components/schemas/SpringBootError"
+              examples:
+                negocio:
+                  value:
+                    timestamp: 2026-10-30T12:00:00Z
+                    status: 400
+                    code: INVALID_PERIOD
+                    message: El periodo es invalido
+                    path: /api/v1/analytics/dashboard
+                    correlationId: 2aa05de5-76a4-46e3-a7a1-e4572cf602a6
+                fechaMalFormada:
+                  value:
+                    timestamp: 2026-10-30T12:00:00Z
+                    status: 400
+                    error: Bad Request
+                    path: /api/v1/analytics/dashboard
+        "503":
+          description: "Pedidos no disponible o respuesta inválida, sin snapshot vá\
+            lido del período exacto"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+              examples:
+                negocio:
+                  value:
+                    timestamp: 2026-10-30T12:00:00Z
+                    status: 503
+                    code: EXTERNAL_SERVICE_UNAVAILABLE
+                    message: Servicio externo no disponible
+                    path: /api/v1/analytics/dashboard
+                    correlationId: 2aa05de5-76a4-46e3-a7a1-e4572cf602a6
+        "401":
+          description: "Spring Security: autenticación requerida o credenciales invá\
+            lidas (Accept: application/json). No garantiza ErrorResponseDTO."
+components:
+  schemas:
+    ResenaRequest:
+      type: object
+      description: Datos de entrada para registrar una reseña. No declara restricciones
+        Bean Validation; la puntuación se valida en el servicio.
+      properties:
+        pedidoId:
+          type: integer
+          format: int64
+          description: Identificador del pedido sobre el que se realiza la reseña
+          example: 501
+        tipoObjetivo:
+          type: string
+          description: Tipo de objetivo de la reseña
+          enum:
+          - COMERCIO
+          - REPARTIDOR
+          example: COMERCIO
+        puntuacion:
+          type: integer
+          format: int32
+          description: Puntuación de la reseña. La aplicación rechaza valores nulos
+            o fuera del rango 1 a 5.
+          example: 5
+          maximum: 5
+          minimum: 1
+        comentario:
+          type: string
+          description: Comentario opcional de la reseña
+          example: Entrega rápida y atención cordial
+    ResenaResponse:
+      type: object
+      description: Reseña creada
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Identificador de la reseña
+          example: 9001
+        usuarioId:
+          type: integer
+          format: int64
+          description: Identificador del usuario que realizó la reseña
+          example: 100
+        pedidoId:
+          type: integer
+          format: int64
+          description: Identificador del pedido reseñado
+          example: 501
+        tipoObjetivo:
+          type: string
+          description: Tipo de objetivo reseñado
+          enum:
+          - COMERCIO
+          - REPARTIDOR
+          example: COMERCIO
+        objetivoId:
+          type: integer
+          format: int64
+          description: Identificador del comercio o repartidor derivado del pedido
+          example: 10
+        puntuacion:
+          type: integer
+          format: int32
+          description: Puntuación otorgada
+          example: 5
+        comentario:
+          type:
+          - string
+          - "null"
+          description: Comentario de la reseña
+          example: Entrega rápida y atención cordial
+        fechaCreacion:
+          type: string
+          format: local-date-time
+          description: Fecha y hora de creación
+          example: 2025-01-31T14:30:00
+    ErrorResponseDTO:
+      type: object
+      description: Formato de error devuelto por el manejador global de excepciones
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Fecha y hora UTC del error
+          example: 2026-10-30T12:00:00Z
+        status:
+          type: integer
+          format: int32
+          description: Código HTTP
+          example: 400
+        code:
+          type: string
+          description: Código estable del error
+          example: INVALID_RATING
+        message:
+          type: string
+          description: Detalle del error
+          example: La puntuación debe estar entre 1 y 5
+        path:
+          type: string
+          description: Ruta solicitada
+          example: /api/v1/reviews
+        correlationId:
+          type: string
+          format: uuid
+          description: UUID de X-Correlation-Id válido o generado por el servidor
+      required:
+      - code
+      - correlationId
+      - message
+      - path
+      - status
+      - timestamp
+    SpringBootError:
+      type: object
+      description: Respuesta JSON de Spring Boot para errores de binding; no es ErrorResponseDTO
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+          format: int32
+        error:
+          type: string
+        path:
+          type: string
+      required:
+      - error
+      - path
+      - status
+      - timestamp
+    RatingResponse:
+      type: object
+      description: Calificación agregada de un comercio o repartidor
+      properties:
+        objetivoId:
+          type: integer
+          format: int64
+          description: Identificador del objetivo
+          example: 10
+        tipoObjetivo:
+          type: string
+          description: Tipo de objetivo
+          enum:
+          - COMERCIO
+          - REPARTIDOR
+          example: COMERCIO
+        promedio:
+          type:
+          - number
+          - "null"
+          description: Promedio con dos decimales; null cuando no hay reseñas
+          example: 4.75
+        cantidadResenas:
+          type: integer
+          format: int64
+          description: Cantidad de reseñas consideradas; cero cuando no hay reseñas
+          example: 12
+    DashboardResponse:
+      type: object
+      description: Resultado del tablero de analítica para un período
+      properties:
+        generadoEn:
+          type: string
+          format: local-date-time
+          description: Fecha y hora de generación de la respuesta; no indica la antigüedad
+            del snapshot de respaldo
+          example: 2025-01-31T14:30:00
+        metricas:
+          type: array
+          description: Métricas disponibles para el período
+          items:
+            $ref: "#/components/schemas/MetricaResumen"
+        parcial:
+          type: boolean
+          description: Indica uso de un snapshot del período exacto ante indisponibilidad
+            o respuesta inválida de Pedidos
+          example: false
+    MetricaResumen:
+      type: object
+      description: Resumen de una métrica del tablero
+      properties:
+        fuente:
+          type: string
+          description: Fuente de los datos
+          enum:
+          - RESENAS
+          - PEDIDOS
+          example: RESENAS
+        tipoMetrica:
+          type: string
+          description: Tipo de métrica
+          enum:
+          - PROMEDIO_CALIFICACION
+          - CANTIDAD_RESENAS
+          - PEDIDOS_ENTREGADOS
+          example: CANTIDAD_RESENAS
+        periodoDesde:
+          type: string
+          format: date
+          description: Inicio del período incluido
+          example: 2025-01-01
+        periodoHasta:
+          type: string
+          format: date
+          description: Fin del período incluido
+          example: 2025-01-31
+        valor:
+          type:
+          - number
+          - "null"
+          description: Valor de la métrica; null exclusivamente para PROMEDIO_CALIFICACION
+            sin reseñas. Ese promedio no se persiste.
+          example: 25.0
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
