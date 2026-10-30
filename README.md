@@ -1,85 +1,80 @@
-# tpo-deliverygo-g4-ops-analitica
-DeliveryGo | Módulo de Opiniones y Analítica
+# DeliveryGo — Grupo 4
 
-## Dashboard — CU-05
+Módulo de **Opiniones y Analítica**: registra reseñas de comercios y repartidores,
+consulta calificaciones y genera un tablero de métricas operativas.
 
-`GET /api/v1/analytics/dashboard?periodoDesde=2026-10-01&periodoHasta=2026-10-30`
+## Tecnologías
 
-Ambos parámetros son opcionales, con formato ISO `yyyy-MM-dd`. Cada extremo
-omitido toma la fecha actual del servidor, leída una sola vez por solicitud.
-El período incluye ambos días. Las fechas mal formadas y los rangos invertidos
-responden HTTP 400; Spring conserva su manejo estándar para errores de formato.
+Java 25, Spring Boot 3.5.16, Spring Data JPA, H2, Springdoc OpenAPI 2.9.1 y Maven.
 
-La respuesta contiene `generadoEn`, `metricas` y `parcial`. Cada métrica informa
-`fuente`, `tipoMetrica`, `periodoDesde`, `periodoHasta` y `valor`:
+## Arquitectura
 
-- `RESENAS / CANTIDAD_RESENAS`: cantidad de reseñas del período.
-- `RESENAS / PROMEDIO_CALIFICACION`: promedio con dos decimales, redondeo HALF_UP.
-  Sin reseñas, se devuelve `valor: null` y no se persiste ese promedio.
-- `PEDIDOS / PEDIDOS_ENTREGADOS`: cantidad agregada obtenida mediante PedidosClient.
+Controller → Service → Repository, con DTOs para contratos y clientes externos
+para aislar integraciones. [Arquitectura y decisiones](docs/arquitectura.md).
 
-RN-03: cada snapshot tiene fuente y período obligatorios. RN-06: se actualiza el
-snapshot de la misma fuente, tipo y período, conservando la restricción UNIQUE
-existente. No se agregan locks ni reintentos; solicitudes concurrentes pueden
-producir un conflicto de persistencia, aunque la base impide duplicados.
+## Casos de uso
 
-Si Pedidos está indisponible o devuelve estadísticas inválidas, se busca el
-snapshot de PEDIDOS_ENTREGADOS para el período **exacto** solicitado:
+| CU | Nombre | Estado |
+| --- | --- | --- |
+| [CU-01](docs/casos-de-uso.md#cu-01) | Calificar comercio | Implementado con mocks |
+| [CU-02](docs/casos-de-uso.md#cu-02) | Calificar repartidor | Implementado con mocks |
+| [CU-03](docs/casos-de-uso.md#cu-03) | Consultar promedio de comercio | Implementado |
+| [CU-04](docs/casos-de-uso.md#cu-04) | Consultar promedio de repartidor | Implementado |
+| [CU-05](docs/casos-de-uso.md#cu-05) | Generar tablero de métricas | Implementado con mock de Pedidos |
+| [CU-06](docs/casos-de-uso.md#cu-06) | Registrar evento analítico | Evolución pendiente |
+| [CU-07](docs/casos-de-uso.md#cu-07) | Consultar métricas por período | Evolución pendiente |
+| [CU-08](docs/casos-de-uso.md#cu-08) | Analizar cantidad y estado de pedidos | Evolución pendiente |
+| [CU-09](docs/casos-de-uso.md#cu-09) | Analizar pagos aprobados y rechazados | Evolución pendiente |
+| [CU-10](docs/casos-de-uso.md#cu-10) | Analizar tiempos y entregas | Evolución pendiente |
 
-- Con snapshot válido: HTTP 200, `parcial: true`, con el valor persistido.
-  La lectura del respaldo no modifica su fecha de cálculo.
-- Sin snapshot válido: HTTP 503 con ErrorResponseDTO. No se inventan valores ni
-  se utilizan períodos distintos. La transacción revierte las escrituras de esa solicitud.
+## API REST
 
-`parcial: false` indica que Pedidos respondió correctamente. `generadoEn` fecha
-la respuesta, no la antigüedad del respaldo. La configuración actual de H2 en
-memoria con `create-drop` pierde los snapshots al reiniciar la aplicación.
+| ID | Método y ruta | CU |
+| --- | --- | --- |
+| API-01 | `POST /api/v1/reviews` | CU-01, CU-02 |
+| API-02 | `GET /api/v1/merchants/{id}/rating` | CU-03 |
+| API-03 | `GET /api/v1/couriers/{id}/rating` | CU-04 |
+| API-04 | `GET /api/v1/analytics/dashboard` | CU-05 |
 
-## INT-05 — contrato propuesto, pendiente de confirmación
+[Swagger UI](http://localhost:8089/swagger-ui.html).
+[Contratos, ejemplos y exportación OpenAPI](docs/api/README.md).
 
-`GET /api/v1/orders/stats?estado=ENTREGADO&periodoDesde=yyyy-MM-dd&periodoHasta=yyyy-MM-dd`
+## Instalación y ejecución
 
-Respuesta propuesta (`OrdersStatsDTO`):
+Requisitos: JDK 25 y Maven instalado; no se incluye Maven Wrapper.
+Desde la raíz del módulo:
 
-```json
-{
-  "estado": "ENTREGADO",
-  "periodoDesde": "2026-10-01",
-  "periodoHasta": "2026-10-30",
-  "cantidad": 2
-}
+```sh
+mvn -DskipTests compile
+mvn spring-boot:run
 ```
 
-Se valida respuesta no nula, cantidad no nula y no negativa, estado y período
-coincidentes. La indisponibilidad se comunica mediante
-ExternalServiceUnavailableException. No se consultan pedidos individuales para
-calcular estadísticas. Todavía no existe un cliente HTTP real.
+La configuración local incluida usa puerto **8089**, H2 en memoria y clientes mock;
+no requiere configurar URLs externas. La identidad temporal de API-01 se envía en
+`X-Usuario-Id`. [Configuración y datos de ejemplo](docs/api/README.md#ejecucion-local).
 
-Pendiente de acordar con el equipo de Pedidos: nombres de parámetros, literal de
-estado, JSON, fecha utilizada para contar entregas, límites inclusivos y zona
-horaria, autenticación, URL, tiempos de espera y errores.
+- API: <http://localhost:8089/api/v1>
+- OpenAPI: <http://localhost:8089/v3/api-docs.yaml>
+- H2: <http://localhost:8089/h2-console>
 
-El mock sigue activo y sus estadísticas se configuran en application.properties:
+## Integraciones externas
 
-```properties
-app.pedidos.mock.stats.disponible=true
-app.pedidos.mock.stats.cantidad-entregados=2
-```
+Usuarios, Pedidos, Comercios y Logística cuentan con adaptadores y mocks locales;
+no hay clientes HTTP reales. Pagos pertenece a la evolución mediante eventos.
+**INT-05 es propuesto y está pendiente de confirmación con Pedidos.**
+[Contratos y acuerdos pendientes](docs/integraciones.md).
 
-La cantidad es un agregado simulado para cualquier período solicitado, no un
-conteo histórico real. `disponible=false` o una cantidad negativa simulan
-indisponibilidad. Estas opciones no alteran obtenerPedido ni CU-01 a CU-04.
-Las propiedades se leen al iniciar; reiniciar también elimina los snapshots H2.
-Para verificar fallback durante la misma ejecución, se necesita sembrar un
-snapshot del período o cambiar la disponibilidad del mock en el depurador.
+## Documentación
 
-## Arquitectura y verificación
+- [Casos de uso y trazabilidad](docs/casos-de-uso.md)
+- [Reglas de negocio](docs/reglas-de-negocio.md)
+- [Arquitectura y discrepancias](docs/arquitectura.md)
+- [Integraciones](docs/integraciones.md)
+- [API](docs/api/README.md)
+- [Diagramas](docs/diagramas/README.md)
+- [Referencias originales](docs/referencias/README.md)
 
-CU-05 mantiene Controller → Service → Repository, con la integración externa
-aislada en PedidosClient. No incorpora CU-06 a CU-10 ni modifica reglas de reseñas.
-Swagger describe parámetros, métricas y respuestas 200/400/503.
+## Equipo
 
-Compilación sin ejecutar pruebas: `mvn -DskipTests compile` (Java 25).
-No se agregan pruebas automatizadas. Verificar manualmente fechas omitidas e
-inválidas, métricas con/sin reseñas, actualización sin duplicados y caída de
-Pedidos con/sin respaldo del período exacto.
+Grupo 4: Alejandro Aguilera, Alejo Ferrari Cioffi, Nicolás Gabriel Hruszczak y
+Emiliano Guillermo San Martin. Docente: Alejandro Luis Foglino.
