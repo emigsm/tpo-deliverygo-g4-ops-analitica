@@ -1,17 +1,27 @@
 package ar.edu.uade.api.deliverygo.dto;
 import ar.edu.uade.api.deliverygo.model.TipoObjetivo;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
 // DTO-02 (salida, API-01)
+@Schema(description = "Reseña creada")
 public class ResenaResponse {
 
+    @Schema(description = "Identificador de la reseña", example = "9001")
     private Long id;
+    @Schema(description = "Identificador del usuario que realizó la reseña", example = "100")
     private Long usuarioId;
+    @Schema(description = "Identificador del pedido reseñado", example = "501")
     private Long pedidoId;
+    @Schema(description = "Tipo de objetivo reseñado", example = "COMERCIO")
     private TipoObjetivo tipoObjetivo;
+    @Schema(description = "Identificador del comercio o repartidor derivado del pedido", example = "10")
     private Long objetivoId;
+    @Schema(description = "Puntuación otorgada", example = "5")
     private Integer puntuacion;
+    @Schema(description = "Comentario de la reseña", example = "Entrega rápida y atención cordial")
     private String comentario;
+    @Schema(description = "Fecha y hora de creación", example = "2025-01-31T14:30:00")
     private LocalDateTime fechaCreacion;
 
     public ResenaResponse() {

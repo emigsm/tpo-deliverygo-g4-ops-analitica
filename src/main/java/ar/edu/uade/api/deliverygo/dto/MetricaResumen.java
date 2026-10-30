@@ -2,17 +2,24 @@ package ar.edu.uade.api.deliverygo.dto;
 
 import ar.edu.uade.api.deliverygo.model.FuenteMetrica;
 import ar.edu.uade.api.deliverygo.model.TipoMetrica;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 // DTO-10 (salida, API-04) Representa una métrica sin ID ni fechaCalculo
+@Schema(description = "Resumen de una métrica del tablero")
 public class MetricaResumen {
 
+    @Schema(description = "Fuente de los datos", example = "RESENAS")
     private FuenteMetrica fuente;
+    @Schema(description = "Tipo de métrica", example = "CANTIDAD_RESENAS")
     private TipoMetrica tipoMetrica;
+    @Schema(description = "Inicio del período incluido", example = "2025-01-01")
     private LocalDate periodoDesde;
+    @Schema(description = "Fin del período incluido", example = "2025-01-31")
     private LocalDate periodoHasta;
+    @Schema(description = "Valor calculado para la métrica", example = "25.00")
     private BigDecimal valor;
 
     public MetricaResumen() {
