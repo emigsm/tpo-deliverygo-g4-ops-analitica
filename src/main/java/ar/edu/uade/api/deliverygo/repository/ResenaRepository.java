@@ -4,6 +4,7 @@ import ar.edu.uade.api.deliverygo.model.Resena;
 import ar.edu.uade.api.deliverygo.model.TipoObjetivo;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public interface ResenaRepository extends JpaRepository<Resena, Long> {
@@ -15,4 +16,7 @@ public interface ResenaRepository extends JpaRepository<Resena, Long> {
 
     // REP-03: Reseñas de un comercio o repartidor
     List<Resena> findByObjetivoIdAndTipoObjetivo(Long objetivoId, TipoObjetivo tipoObjetivo);
+
+    List<Resena> findByFechaCreacionGreaterThanEqualAndFechaCreacionLessThan(
+            LocalDateTime desde, LocalDateTime hasta);
 }
