@@ -7,11 +7,11 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "Resultado del tablero de analítica para un período")
 public class DashboardResponse {
 
-    @Schema(description = "Fecha y hora en que se generó el tablero", example = "2025-01-31T14:30:00")
+    @Schema(description = "Fecha y hora de generación de la respuesta; no indica la antigüedad del snapshot de respaldo", example = "2025-01-31T14:30:00")
     private LocalDateTime generadoEn;
     @Schema(description = "Métricas disponibles para el período")
     private List<ar.edu.uade.api.deliverygo.dto.MetricaResumen> metricas;
-    @Schema(description = "Indica que faltan métricas de una fuente externa no disponible", example = "false")
+    @Schema(description = "Indica uso de un snapshot del período exacto ante indisponibilidad o respuesta inválida de Pedidos", example = "false")
     private boolean parcial; //DM-09
 
     public DashboardResponse() {

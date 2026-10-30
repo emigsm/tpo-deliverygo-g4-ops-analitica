@@ -11,6 +11,9 @@ public interface PedidosClient {
     //GET /api/v1/orders/{id} (INT-01) Devuelve 200, 404 (Optional.empty()), 503
     Optional<PedidoDTO> obtenerPedido(Long pedidoId);
 
-    //GET /api/v1/orders/stats (DM-08, validar) (INT-05). Devuelve 200, 503
+    // INT-05 PROPUESTO, pendiente de confirmación con el equipo de Pedidos:
+    // GET /api/v1/orders/stats?estado=ENTREGADO&periodoDesde=yyyy-MM-dd&periodoHasta=yyyy-MM-dd
+    // 200: OrdersStatsDTO con estado/período coincidentes y cantidad no negativa.
+    // Indisponibilidad: ExternalServiceUnavailableException (503). Sin consulta de pedidos individuales.
     OrdersStatsDTO obtenerEstadisticas(String estado, LocalDate periodoDesde, LocalDate periodoHasta);
 }
