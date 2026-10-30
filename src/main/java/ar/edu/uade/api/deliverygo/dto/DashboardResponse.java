@@ -7,7 +7,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 @Schema(description = "Resultado del tablero de analítica para un período")
 public class DashboardResponse {
 
-    @Schema(description = "Fecha y hora de generación de la respuesta; no indica la antigüedad del snapshot de respaldo", example = "2025-01-31T14:30:00")
+    @Schema(type = "string", format = "local-date-time", description = "Fecha y hora de generación de la respuesta; no indica la antigüedad del snapshot de respaldo", example = "2025-01-31T14:30:00")
     private LocalDateTime generadoEn;
     @Schema(description = "Métricas disponibles para el período")
     private List<ar.edu.uade.api.deliverygo.dto.MetricaResumen> metricas;

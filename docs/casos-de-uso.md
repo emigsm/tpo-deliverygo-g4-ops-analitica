@@ -1,7 +1,7 @@
 # Casos de uso
 
 Diseño: [TPO corregido y evolución](referencias/README.md). Estado: código Java
-actual de la rama `docs`. “Implementado con mocks” describe funcionalidad local,
+actual del repositorio. “Implementado con mocks” describe funcionalidad local,
 no integración productiva. CU-06 a CU-10 no están implementados, aunque API-04
 ya recibe un período: eso no implementa la consulta de snapshots de CU-07.
 
@@ -104,7 +104,7 @@ y las secuencias existentes o pendientes en [diagramas](diagramas/README.md).
 - **Flujo previsto:** API-06 con ambas fechas obligatorias llama SRV-05; REP-08 lee ENT-02 y devuelve 200 con lista de DTO-10, sin recalcular.
 - **Alternativa prevista:** sin snapshots, lista vacía y 200.
 - **Resultado esperado:** métricas persistidas del rango solicitado.
-- **Referencias:** fila CU-07; sin RN en la ficha ni INT, SEC-07 pendiente, DM-16. REP-08 propuesto usa límites de período contenidos en el rango.
+- **Referencias:** fila CU-07; sin RN en la ficha ni INT, SEC-07 pendiente, DM-16. REP-08 sugiere períodos contenidos en el rango; la semántica de filtrado queda pendiente de confirmación.
 - **Estado:** evolución pendiente; las fechas opcionales del tablero no equivalen a esta consulta.
 
 <a id="cu-08"></a>
@@ -139,3 +139,11 @@ y las secuencias existentes o pendientes en [diagramas](diagramas/README.md).
 - **Resultado esperado:** ambas métricas agregadas al tablero.
 - **Referencias:** fila CU-10; RN-03/06/09, SEC-10 pendiente, DM-14/15/16/18; eventos de Logística vía CU-06, sin nueva INT saliente.
 - **Estado:** evolución pendiente; no existen estos tipos de métricas ni su cálculo.
+
+## Contratos OpenAPI
+
+La [tabla API/CU/estado](api/README.md#contratos-publicados-y-trazabilidad) distingue
+implementación y propuesta. Los contratos canónicos son [API-01 a API-04](api/openapi.yaml)
+y [API-05/06 propuestas](api/openapi-evolucion-propuesta.yaml). CU-08/09/10
+ampliarán API-04 según DM-18. Los cambios incompatibles de errores se describen
+en la [documentación API](api/README.md#cambio-incompatible-del-contrato-de-errores).

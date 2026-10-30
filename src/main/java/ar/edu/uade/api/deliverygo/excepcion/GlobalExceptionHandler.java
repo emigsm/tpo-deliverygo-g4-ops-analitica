@@ -7,7 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.UUID;
 
 //Mapeo de excepciones del módulo a códigos HTTP
 @RestControllerAdvice
@@ -58,15 +59,39 @@ public class GlobalExceptionHandler {
     }
 
 
+    private String correlationId(HttpServletRequest request) {
+        String incoming = request.getHeader("X-Correlation-Id");
+        if (incoming != null) {
+            try {
+                UUID uuid = UUID.fromString(incoming);
+                if (uuid.toString().equalsIgnoreCase(incoming)) {
+                    return incoming;
+                }
+            } catch (IllegalArgumentException ignored) {
+                // Invalid headers are replaced, never reflected in an error message.
+            }
+        }
+        return UUID.randomUUID().toString();
+    }
+
+    private String codigo(RuntimeException ex) {
+        if (ex instanceof DuplicateReviewException) return "DUPLICATE_REVIEW";
+        if (ex instanceof InvalidRatingException) return "INVALID_RATING";
+        if (ex instanceof InvalidPeriodException) return "INVALID_PERIOD";
+        if (ex instanceof ExternalServiceUnavailableException) return "EXTERNAL_SERVICE_UNAVAILABLE";
+        return "BUSINESS_RULE_VIOLATION";
+    }
+
     private ResponseEntity<ErrorResponseDTO> construir(
             HttpStatus status, RuntimeException ex, HttpServletRequest request) {
 
         ErrorResponseDTO error = new ErrorResponseDTO(
-                LocalDateTime.now(),
+                Instant.now(),
                 status.value(),
-                status.getReasonPhrase(),
+                codigo(ex),
                 ex.getMessage(),
-                request.getRequestURI()
+                request.getRequestURI(),
+                correlationId(request)
         );
 
         return ResponseEntity.status(status).body(error);

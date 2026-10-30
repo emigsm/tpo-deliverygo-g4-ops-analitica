@@ -15,12 +15,20 @@ vacía y URL JDBC `jdbc:h2:mem:deliverygo-ops-analitica`. Consola:
 <http://localhost:8089/h2-console>. Los datos se eliminan al reiniciar.
 No hay URLs de proveedores que configurar mientras se usen mocks.
 
-Spring Security está entre las dependencias y no existe SecurityConfig propia:
-la autoconfiguración puede exigir el usuario local `user` y la contraseña generada
-en el log de inicio, además del header de negocio. Puede proteger Swagger/H2 o
-rechazar POST por CSRF; X-Usuario-Id no sustituye esa autenticación. No se promete
-acceso anónimo ni autenticación JWT. Usar las credenciales efectivas del entorno;
-esta tarea no cambia seguridad ni configuración.
+Spring Security está autoconfigurado, sin SecurityConfig propia. GET con
+`Accept: application/json` sin credenciales devuelve 401. HTTP Basic o sesión
+por formulario permiten acceder a Swagger y a las APIs. Usuario local `user` y
+contraseña generada en el log, salvo configuración explícita del entorno.
+`X-Usuario-Id` no autentica: solo API-01 lo usa como identidad de negocio.
+JWT Bearer sigue pendiente; no está implementado.
+
+CSRF permanece activo: con sesión autenticada, POST sin token válido devuelve
+403 con el formato de Spring Boot. Con Basic y sin sesión/token puede observarse
+401 por el despacho de error antes de autenticar. Basic por sí solo no habilita
+POST. Para verificarlo manualmente, obtener `/login`, conservar la cookie y el
+campo `_csrf`; enviarlo como `X-CSRF-TOKEN` en la misma sesión autenticada.
+Swagger es accesible con credenciales; sus POST también requieren CSRF.
+No se modificó ninguna configuración de seguridad.
 
 Los mocks contienen usuario 100, comercio 10 y repartidor 20 activos. Pedido 1:
 usuario 100, comercio 10, ENTREGADO; pedido 2: usuario 100, repartidor 20,
@@ -64,8 +72,8 @@ tipoMetrica, periodoDesde, periodoHasta y valor.
 | PEDIDOS / PEDIDOS_ENTREGADOS | Agregado simulado mediante INT-05 |
 
 Rango invertido: 400 con ErrorResponseDTO. Fecha mal formada: 400 con manejo
-estándar de Spring. ErrorResponseDTO contiene timestamp, status, error, mensaje
-y path; no se promete este formato para todos los errores del framework.
+estándar de Spring. ErrorResponseDTO contiene timestamp, status, code, message, path y correlationId;
+no se promete este formato para errores del framework o de seguridad.
 
 Pedidos indisponible o inválido: se usa solo el snapshot válido del período
 exacto y parcial=true; no se modifica su fecha de cálculo. Sin respaldo válido:
@@ -79,49 +87,102 @@ indisponibilidad. No afectan obtenerPedido ni CU-01 a CU-04. Reiniciar elimina
 snapshots H2; para observar respaldo durante la misma ejecución se requiere
 sembrar un snapshot o cambiar la disponibilidad del mock mediante depurador.
 
-## Verificación de la especificación disponible
+## Contratos publicados y trazabilidad
 
-Se contrastó `target/openapi-verified.json` con OpinionesController, DTOs,
-AnalyticsService y GlobalExceptionHandler actuales. Incluye las cuatro rutas,
-ambas fechas opcionales, las tres métricas actuales, promedio nullable,
-respaldo del período exacto, parcial y 503 sin respaldo. No incluye API-05/06.
-Su servidor de captura es `http://127.0.0.1:18089`, distinto del puerto local
-configurado 8089; no es un endpoint externo confirmado.
+| API | CU | Estado |
+| --- | --- | --- |
+| API-01 | CU-01, CU-02 | Implementado |
+| API-02 | CU-03 | Implementado |
+| API-03 | CU-04 | Implementado |
+| API-04 | CU-05 | Implementado con mock |
+| API-05 | CU-06 | Propuesto |
+| API-06 | CU-07 | Propuesto |
 
-**El archivo refleja el CU-05 actual, pero no es un contrato preciso para publicar:**
-la respuesta 400 de API-04 referencia DashboardResponse, mientras el rango
-invertido devuelve ErrorResponseDTO y los errores de formato usan Spring.
-La anotación actual no declara contenido específico para 400 y el generador
-infiere el esquema del retorno. Regenerar sin corregir anotaciones puede repetir
-esa discrepancia. No se modifica Java ni se corrige manualmente el contrato.
-Por ello no se publica `openapi.yaml` inexacto; queda pendiente de regeneración
-y validación. El JSON de target es un artefacto local ignorado por Git.
+- [Contrato implementado](openapi.yaml): OpenAPI 3.1 exportado de la aplicación;
+  solo cuatro operaciones. API-01 usa proveedores mock.
+- [Evolución propuesta](openapi-evolucion-propuesta.yaml): API-05/06, DTO-11/12
+  y DTO-10 ampliado. No se carga en Swagger ni registra endpoints.
+  Sus referencias relativas a esquemas actuales requieren conservar ambos YAML juntos.
+- CU-08/09/10 ampliarán API-04 según DM-18; sus métricas no existen en el enum Java actual.
 
-## Regeneración pendiente
+## Cambio incompatible del contrato de errores
 
-Con la aplicación ejecutándose, exportar primero a un archivo temporal:
+Solo las siete excepciones ya manejadas por GlobalExceptionHandler cambian:
+`error` se reemplaza por `code`, `mensaje` por `message`, timestamp pasa de hora
+local sin offset a Instant UTC y se agrega `correlationId`. Los consumidores
+deben actualizar sus modelos y lectura de campos; no se mantienen alias antiguos.
+Estados HTTP, reglas de negocio y mensajes permanecen iguales.
 
-```sh
-curl --fail --show-error http://localhost:8089/v3/api-docs.yaml -o /tmp/deliverygo-openapi.yaml
+| Estado | code |
+| --- | --- |
+| 400 | INVALID_RATING o INVALID_PERIOD |
+| 409 | DUPLICATE_REVIEW |
+| 422 | BUSINESS_RULE_VIOLATION |
+| 503 | EXTERNAL_SERVICE_UNAVAILABLE |
+
+`X-Correlation-Id` opcional se reutiliza solo si tiene formato UUID canónico
+(36 caracteres, hexadecimal sin distinguir mayúsculas y guiones); se conserva
+el valor recibido. Ausente o inválido genera UUID. Solo se refleja en el cuerpo
+de errores manejados; no se agrega a respuestas exitosas ni a errores de Spring.
+No se registran ni devuelven trazas internas.
+
+```json
+{"timestamp":"2026-10-30T12:00:00Z","status":422,"code":"BUSINESS_RULE_VIOLATION","message":"El pedido no fue entregado","path":"/api/v1/reviews","correlationId":"2aa05de5-76a4-46e3-a7a1-e4572cf602a6"}
 ```
 
-Si Spring Security solicita credenciales, repetir con `--user user` para que curl
-solicite la contraseña del entorno. Swagger UI:
-<http://localhost:8089/swagger-ui.html>. JSON generado:
-<http://localhost:8089/v3/api-docs>.
+Fecha mal formada: 400 de Spring Boot con timestamp, status, error y path;
+rango invertido: 400 ErrorResponseDTO. El OpenAPI representa ambos con oneOf.
+Los timestamps LocalDateTime de reseñas y dashboard conservan su comportamiento
+sin offset y se documentan con formato personalizado `local-date-time`.
 
-Antes de copiar la exportación a `docs/api/openapi.yaml`, verificar rutas,
-DTOs, parámetros, enums, nullabilidad y esquemas de errores contra Java;
-confirmar especialmente 400 de API-04. Si persiste la discrepancia, mantener
-la exportación fuera de la documentación publicada y coordinar su corrección
-en una tarea de código separada. Conservar la salida generada sin inventar
-contratos ni incorporar API-05/06 o métricas futuras.
+## Regeneración
 
-## Evolución sin contrato activo
+Con Java 25 y Maven, ejecutar `mvn -DskipTests compile` y `mvn spring-boot:run`.
+Exportar desde otra terminal, usando la contraseña efectiva del entorno:
 
-API-05 `POST /api/v1/analytics/events` y API-06
-`GET /api/v1/analytics/metrics` son propuestas de las referencias, no endpoints
-implementados. Sus fichas están en [casos de uso](../casos-de-uso.md#cu-06).
+```sh
+curl --fail --show-error --user user http://localhost:8089/v3/api-docs.yaml -o docs/api/openapi.yaml
+```
+
+No editar el YAML generado: corregir anotaciones/configuración y regenerar.
+El servidor publicado refleja el puerto de captura 18092, usado para evitar
+interferir con otras instancias; el puerto habitual del proyecto es 8089.
+Validar OpenAPI 3.1, referencias, ejemplos y las cuatro operaciones antes de publicar.
+Un validador externo puede instalarse fuera del proyecto:
+
+```sh
+python3 -m venv /tmp/deliverygo-openapi-validator
+/tmp/deliverygo-openapi-validator/bin/pip install openapi-spec-validator
+/tmp/deliverygo-openapi-validator/bin/openapi-spec-validator docs/api/openapi.yaml
+/tmp/deliverygo-openapi-validator/bin/openapi-spec-validator docs/api/openapi-evolucion-propuesta.yaml
+```
+
+## Acuerdos pendientes de evolución
+
+API-05: idempotencia y prevención de duplicados; autenticación servicio a
+servicio; identificadores de evento/entidad y formatos definitivos; zona,
+offset y significado de fechaEvento; validación de moduloOrigen contra tipoEvento.
+Long y LocalDateTime son tipos provisionales del documento de endpoints, no
+acuerdos finales. El contrato expresa detalle obligatorio para cambios de estado,
+valor obligatorio en minutos para entregas y ninguno requerido para pagos.
+
+API-06: confirmar si el rango contiene períodos completos, incluye solapamientos
+y qué límites aplica; REP-08 sugiere contención, sin cerrar el acuerdo.
+También sigue pendiente la persistencia del promedio de entrega null de CU-10
+frente al NOT NULL actual. INT-05 continúa pendiente de acuerdo con Pedidos.
+
+## Verificación de Task 05
+
+Compilación Java 25 y Maven 3.9.9 correcta; ambos documentos OpenAPI 3.1
+validados, referencias resueltas y ejemplos de respuestas cotejados con sus esquemas.
+Swagger autenticado devuelve 200 y su contrato contiene exactamente cuatro operaciones.
+Verificación HTTP manual: 201 comercio/repartidor; 200 ratings con/sin reseñas y
+dashboard con/sin reseñas; 400 puntuación, rango invertido y fecha mal formada;
+409 duplicado; 422 pedido no entregado; correlación válida reutilizada e inválida
+reemplazada; 401 anónimo y 403 POST sin CSRF con sesión autenticada.
+Una segunda instancia temporal con mock de Pedidos indisponible y snapshots
+sembrados en H2 confirmó parcial=true y 503 sin respaldo exacto.
+Sin pruebas automatizadas nuevas ni cambios de seguridad, servicios o persistencia.
 
 ## Escenarios de verificación manual
 
@@ -135,4 +196,4 @@ Conservar como guía funcional, sin agregar pruebas automatizadas:
 - Simular caída de Pedidos con/sin respaldo del período exacto en la misma ejecución.
 
 Estos escenarios describen verificaciones para una aplicación accesible;
-no se ejecutaron como parte de esta modificación documental.
+no sustituyen una suite automatizada; los casos ejecutados se indican arriba.

@@ -61,3 +61,22 @@ duplicados, entrega de eventos y zona horaria; no se inventan políticas.
 CU-07 lee snapshots locales y CU-08/09/10 consumen eventos locales; no requieren
 consultas HTTP nuevas según la evolución. No se propone un endpoint de
 estadísticas de Pagos ni de Logística.
+
+## Contratos y acuerdos de Task 05
+
+[API-01 a API-04 implementadas](api/openapi.yaml) y
+[API-05/06 propuestas](api/openapi-evolucion-propuesta.yaml) son los contratos
+canónicos; no hay endpoints nuevos registrados. La
+[tabla de estado](api/README.md#contratos-publicados-y-trazabilidad) conserva trazabilidad.
+CU-08/09/10 ampliarán API-04 (DM-18).
+
+Pendientes de API-05: idempotencia/duplicados, autenticación entre servicios,
+identificador del evento y referencias de entidad (incluidos formatos), zona y
+semántica temporal, y validación origen/tipo. API-06: filtrado por contención o
+solapamiento y límites por confirmar. No se asume acceso anónimo por omitir
+X-Usuario-Id. Los tipos Long y LocalDateTime del documento fuente son provisionales.
+
+Los clientes de errores manejados deben migrar de error/mensaje a code/message,
+aceptar timestamp UTC y correlationId. X-Correlation-Id reutiliza UUID canónicos;
+si falta o es inválido se genera UUID. Errores del framework y seguridad conservan
+su estructura. Véase el [impacto incompatible](api/README.md#cambio-incompatible-del-contrato-de-errores).

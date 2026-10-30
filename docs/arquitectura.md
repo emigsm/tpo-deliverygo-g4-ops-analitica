@@ -115,7 +115,7 @@ pero no existen en el código actual.
 | CU-10 sin entregas: promedio null | ENT-02.valor es NOT NULL; falta acordar cómo persistir o representar ese caso. |
 | DTOs y diseño usan Reseña / cantidadReseñas | Java y JSON usan Resena / cantidadResenas; conservar nombres reales en contratos. |
 | DTO-01 describe campos obligatorios en documento de endpoints | No hay restricciones Bean Validation en el DTO. Puntuación se valida en servicio; no se promete validación completa de campos nulos. |
-| OpenAPI generado para 400 de API-04 | Declara DashboardResponse aunque el rango invertido devuelve ErrorResponseDTO; ver guía API. |
+| OpenAPI generado para 400 de API-04 | Corregido en Task 05: oneOf distingue ErrorResponseDTO del error de binding de Spring Boot; ver guía API. |
 | Portada versión 1.0 | Historial hasta v1.2; evolución propone v1.3. Originales preservados. |
 
 ## Información pendiente de confirmación
@@ -124,4 +124,4 @@ pero no existen en el código actual.
 - Autenticación JWT y autorización por actor: actores funcionales no implican controles de rol ya implementados.
 - Entrega y deduplicación de eventos, zona horaria y caso de promedio null de CU-10.
 - SEC-06 a SEC-10 y actualización de diagramas históricos para reflejar diferencias aprobadas posteriormente.
-- Resolución de discrepancias con el equipo/docente y corrección futura de las anotaciones OpenAPI; fuera de esta tarea documental.
+- Resolución de discrepancias funcionales con el equipo/docente. Las anotaciones OpenAPI y el contrato de errores fueron corregidos en Task 05; ver documentación API.
