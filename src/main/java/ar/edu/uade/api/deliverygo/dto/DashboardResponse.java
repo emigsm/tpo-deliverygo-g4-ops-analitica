@@ -1,12 +1,17 @@
 package ar.edu.uade.api.deliverygo.dto;
 import java.time.LocalDateTime;
 import java.util.List;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 // DTO-04 (salida, API-04)
+@Schema(description = "Resultado del tablero de analítica para un período")
 public class DashboardResponse {
 
+    @Schema(description = "Fecha y hora en que se generó el tablero", example = "2025-01-31T14:30:00")
     private LocalDateTime generadoEn;
+    @Schema(description = "Métricas disponibles para el período")
     private List<ar.edu.uade.api.deliverygo.dto.MetricaResumen> metricas;
+    @Schema(description = "Indica que faltan métricas de una fuente externa no disponible", example = "false")
     private boolean parcial; //DM-09
 
     public DashboardResponse() {

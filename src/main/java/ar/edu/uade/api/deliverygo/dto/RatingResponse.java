@@ -1,13 +1,19 @@
 package ar.edu.uade.api.deliverygo.dto;
 import ar.edu.uade.api.deliverygo.model.TipoObjetivo;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 
 // DTO-03 (salida, API-02/API-03)
+@Schema(description = "Calificación agregada de un comercio o repartidor")
 public class RatingResponse {
 
+    @Schema(description = "Identificador del objetivo", example = "10")
     private Long objetivoId;
+    @Schema(description = "Tipo de objetivo", example = "COMERCIO")
     private TipoObjetivo tipoObjetivo;
+    @Schema(description = "Promedio con dos decimales; null cuando no hay reseñas", nullable = true, example = "4.75")
     private BigDecimal promedio;
+    @Schema(description = "Cantidad de reseñas consideradas; cero cuando no hay reseñas", example = "12")
     private Long cantidadResenas;
 
     public RatingResponse() {

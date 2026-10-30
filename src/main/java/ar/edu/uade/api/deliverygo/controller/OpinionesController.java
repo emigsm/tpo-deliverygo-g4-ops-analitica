@@ -1,6 +1,7 @@
 package ar.edu.uade.api.deliverygo.controller;
 
 import ar.edu.uade.api.deliverygo.dto.DashboardResponse;
+import ar.edu.uade.api.deliverygo.dto.ErrorResponseDTO;
 import ar.edu.uade.api.deliverygo.dto.RatingResponse;
 import ar.edu.uade.api.deliverygo.dto.ResenaRequest;
 import ar.edu.uade.api.deliverygo.dto.ResenaResponse;
@@ -9,6 +10,9 @@ import ar.edu.uade.api.deliverygo.services.AnalyticsService;
 import ar.edu.uade.api.deliverygo.services.ReviewService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -43,11 +47,36 @@ public class OpinionesController {
     // TODO: reemplazar por el usuarioId que resuelva SecurityConfig
     // Temporalmente se recibe usuarioId por header X-Usuario-Id
 
-    @Operation(summary = "Crear reseña", description = "Registra una reseña sobre un comercio o un repartidor de un pedido entregado. " + "El usuario autenticado se recibe por header temporal X-Usuario-Id hasta que este armado SecurityConfig")
-    @ApiResponses({@ApiResponse(responseCode = "201", description = "Resena creada"), @ApiResponse(responseCode = "400", description = "Puntuacion invalida (debe estar entre 1 y 5)"), @ApiResponse(responseCode = "409", description = "Ya existe una resena de ese usuario para ese pedido y tipo"), @ApiResponse(responseCode = "422", description = "Pedido no entregado, no pertenece al usuario, o usuario/comercio/repartidor invalido o inactivo"), @ApiResponse(responseCode = "503", description = "Un servicio externo (Pedidos, Usuarios, Comercio o Logistica) no esta disponible")})
+    @Operation(
+            summary = "Crear reseña",
+            description = "CU-01 y CU-02: registra una reseña de comercio o repartidor para un pedido entregado. " +
+                    "La identidad del usuario se recibe temporalmente en X-Usuario-Id; se reemplazará al integrar JWT. " +
+                    "La puntuación se valida en el servicio y debe estar entre 1 y 5; los demás campos del DTO no " +
+                    "tienen restricciones Bean Validation declaradas.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Reseña creada",
+                    content = @Content(schema = @Schema(implementation = ResenaResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Puntuación nula o fuera del rango 1 a 5",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class))),
+            @ApiResponse(responseCode = "409", description = "Ya existe una reseña del usuario para ese pedido y tipo",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class))),
+            @ApiResponse(responseCode = "422", description = "El pedido no existe o no fue entregado, no pertenece al usuario, o el usuario/objetivo no existe o está inactivo",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class))),
+            @ApiResponse(responseCode = "503", description = "Un servicio externo requerido no está disponible",
+                    content = @Content(schema = @Schema(implementation = ErrorResponseDTO.class)))
+    })
 
     @PostMapping("/reviews")
-    public ResponseEntity<ResenaResponse> crearResena(@RequestBody ResenaRequest resenaRequest, @Parameter(description = "Id del usuario autenticado (temporal, hasta tener JWT)", example = "100") @RequestHeader("X-Usuario-Id") Long usuarioIdAutenticado) {
+    public ResponseEntity<ResenaResponse> crearResena(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "Datos de la reseña. El DTO no declara restricciones Bean Validation.",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = ResenaRequest.class)))
+            @RequestBody ResenaRequest resenaRequest,
+            @Parameter(name = "X-Usuario-Id", in = ParameterIn.HEADER, required = true,
+                    description = "Id del usuario que realiza la operación. Header temporal hasta integrar JWT.",
+                    example = "100")
+            @RequestHeader("X-Usuario-Id") Long usuarioIdAutenticado) {
 
         ResenaResponse response = reviewService.crearResena(resenaRequest, usuarioIdAutenticado);
 
@@ -55,29 +84,50 @@ public class OpinionesController {
     }
 
     // API-02 (CU-03)
-    @Operation(summary = "Calificación promedio de un comercio")
-    @ApiResponses({@ApiResponse(responseCode = "200", description = "Calificación calculada"), @ApiResponse(responseCode = "503", description = "Servicio externo no disponible")})
+    @Operation(summary = "Calificación promedio de un comercio",
+            description = "CU-03: consulta la calificación promedio y la cantidad de reseñas del comercio.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Calificación calculada. Si no hay reseñas, promedio es null y cantidadResenas es 0.",
+            content = @Content(schema = @Schema(implementation = RatingResponse.class)))})
 
     @GetMapping("/merchants/{id}/rating")
-    public ResponseEntity<RatingResponse> obtenerRatingComercio(@Parameter(example = "10") @PathVariable("id") Long id) {
+    public ResponseEntity<RatingResponse> obtenerRatingComercio(
+            @Parameter(description = "Id del comercio", required = true, example = "10")
+            @PathVariable("id") Long id) {
 
         return ResponseEntity.ok(reviewService.obtenerPromedio(TipoObjetivo.COMERCIO, id));
 
     }
 
     // API-03 (CU-04)
-    @Operation(summary = "Calificación promedio de un repartidor")
-    @ApiResponses({@ApiResponse(responseCode = "200", description = "Calificación calculada"), @ApiResponse(responseCode = "503", description = "Servicio externo no disponible")})
+    @Operation(summary = "Calificación promedio de un repartidor",
+            description = "CU-04: consulta la calificación promedio y la cantidad de reseñas del repartidor.")
+    @ApiResponses({@ApiResponse(responseCode = "200", description = "Calificación calculada. Si no hay reseñas, promedio es null y cantidadResenas es 0.",
+            content = @Content(schema = @Schema(implementation = RatingResponse.class)))})
     @GetMapping("/couriers/{id}/rating")
-    public ResponseEntity<RatingResponse> obtenerRatingRepartidor(@Parameter(example = "20") @PathVariable("id") Long id) {
+    public ResponseEntity<RatingResponse> obtenerRatingRepartidor(
+            @Parameter(description = "Id del repartidor", required = true, example = "20")
+            @PathVariable("id") Long id) {
 
         return ResponseEntity.ok(reviewService.obtenerPromedio(TipoObjetivo.REPARTIDOR, id));
 
     }
 
+    @Operation(summary = "Consultar tablero de analítica",
+            description = "CU-05: obtiene las métricas del período indicado. " +
+                    "La aplicación valida que desde no sea posterior a hasta. Si falla el servicio de pedidos, " +
+                    "responde 200 con parcial=true y las métricas disponibles.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Tablero generado; parcial indica si no se obtuvo alguna fuente externa",
+                    content = @Content(schema = @Schema(implementation = DashboardResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Período inválido (desde posterior a hasta). Spring también rechaza parámetros ausentes o con formato no interpretable.")
+    })
     @GetMapping("/analytics/dashboard")
     public ResponseEntity<DashboardResponse> obtenerTablero(
+            @Parameter(description = "Inicio del período, formato ISO-8601 (yyyy-MM-dd)", required = true,
+                    example = "2025-01-01")
             @RequestParam("desde") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @Parameter(description = "Fin del período, formato ISO-8601 (yyyy-MM-dd), inclusivo. Debe ser igual o posterior a desde.",
+                    required = true, example = "2025-01-31")
             @RequestParam("hasta") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta){
 
         return ResponseEntity.ok(analyticsService.generarTablero(desde, hasta));
