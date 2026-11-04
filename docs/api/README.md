@@ -197,3 +197,19 @@ Conservar como guía funcional, sin agregar pruebas automatizadas:
 
 Estos escenarios describen verificaciones para una aplicación accesible;
 no sustituyen una suite automatizada; los casos ejecutados se indican arriba.
+
+## Contratos para otros equipos (Task 06)
+
+Consumir [el contrato implementado](openapi.yaml) para funcionalidad disponible.
+Usar [la propuesta](openapi-evolucion-propuesta.yaml) para acordar API-05,
+API-06 y la ampliacion de API-04. CU-06 a CU-10 siguen pendientes.
+Las descripciones Swagger objetivo viven en la propuesta; el Swagger UI actual
+conserva sus cuatro operaciones.
+
+API-05: 201 con DTO-12; 400 para entrada invalida; 409 solo propuesto,
+pendiente del acuerdo de idempotencia y duplicados.
+API-06: ambas fechas obligatorias ISO-8601; 200 List<MetricaResumen> (DTO-10),
+incluso `[]`. 400 propuesto para fechas invalidas o rango invertido.
+El filtrado y la contencion de periodos siguen pendientes.
+API-06 es un contrato de salida de datos para consumidores potenciales;
+no hay modulo consumidor obligatorio confirmado.
