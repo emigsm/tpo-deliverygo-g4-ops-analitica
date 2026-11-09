@@ -6,6 +6,7 @@ import ar.edu.uade.api.deliverygo.dto.MetricaResumen;
 import ar.edu.uade.api.deliverygo.dto.OrdersStatsDTO;
 import ar.edu.uade.api.deliverygo.excepcion.ExternalServiceUnavailableException;
 import ar.edu.uade.api.deliverygo.excepcion.InvalidPeriodException;
+import ar.edu.uade.api.deliverygo.mapper.MetricaMapper;
 import ar.edu.uade.api.deliverygo.model.FuenteMetrica;
 import ar.edu.uade.api.deliverygo.model.Metrica;
 import ar.edu.uade.api.deliverygo.model.Resena;
@@ -88,14 +89,26 @@ public class AnalyticsService {
                     .filter(metrica -> metrica.getValor() != null && metrica.getValor().signum() >= 0)
                     .orElseThrow(() -> new ExternalServiceUnavailableException(
                             "Pedidos no disponible y no existe un snapshot válido para el período solicitado"));
-            metricas.add(new MetricaResumen(snapshot.getFuente(), snapshot.getTipoMetrica(),
-                    snapshot.getPeriodoDesde(), snapshot.getPeriodoHasta(), snapshot.getValor()));
+            metricas.add(MetricaMapper.toResponse(snapshot));
             parcial = true;
         }
 
         // 5- Devolver al controller
         return new DashboardResponse(LocalDateTime.now(), metricas, parcial);
 
+    }
+
+    // SRV-05 / REP-08 (CU-07): solo lee snapshots; no recalcula ni consulta proveedores.
+    @Transactional(readOnly = true)
+    public List<MetricaResumen> consultarMetricasPorPeriodo(LocalDate periodoDesde, LocalDate periodoHasta) {
+        if (periodoDesde == null || periodoHasta == null || periodoDesde.isAfter(periodoHasta)) {
+            throw new InvalidPeriodException("Ambas fechas son obligatorias y periodoDesde debe ser igual o anterior a periodoHasta");
+        }
+        return metricaRepository
+                .findByPeriodoDesdeGreaterThanEqualAndPeriodoHastaLessThanEqual(periodoDesde, periodoHasta)
+                .stream()
+                .map(MetricaMapper::toResponse)
+                .toList();
     }
 
     // RN-06: upsert. REP-05 busca el snapshot del período exacto y REP-04 lo persiste.
@@ -111,7 +124,7 @@ public class AnalyticsService {
                 .orElseGet(() -> new Metrica(fuente, tipo, desde, hasta, valor, LocalDateTime.now()));
 
         metricaRepository.save(metrica);
-        return new MetricaResumen(fuente, tipo, desde, hasta, metrica.getValor());
+        return MetricaMapper.toResponse(metrica);
     }
 
 
