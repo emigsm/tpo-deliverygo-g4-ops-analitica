@@ -10,17 +10,16 @@ import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.util.Map;
 
 @Configuration
 public class OpenApiConfig {
     @Bean
     public OpenAPI deliveryGoOpenAPI() {
         return new OpenAPI().info(new Info().title("DeliveryGo API - Opiniones y Analítica")
-                .version("1.0").description("API-01 a API-04 implementadas. Integraciones externas mock. "
+                .version("1.0").description("API-01 a API-04 y API-06 implementadas. API-06 consulta snapshots guardados. Integraciones externas mock. "
                         + "Spring Security autoconfigurado: HTTP Basic o sesión de formulario y CSRF en POST. "
                         + "X-Usuario-Id es identidad de negocio temporal, no autentica. JWT Bearer es futuro. "
-                        + "API-05/06 se documentan exclusivamente en openapi-evolucion-propuesta.yaml. "
+                        + "API-05 sigue siendo una propuesta sin implementación. Los YAML presentados se conservan como referencia de la entrega. "
                         + "Cambio incompatible: errores manejados usan code/message en lugar de error/mensaje, "
                         + "timestamp UTC y correlationId. Errores del framework y seguridad conservan su formato."))
                 .components(new Components().addSecuritySchemes("basicAuth",
@@ -58,7 +57,12 @@ public class OpenApiConfig {
                         json.addExamples("sinResenas", example("{\"objetivoId\":" + (merchant ? 10 : 20)
                                 + ",\"tipoObjetivo\":\"" + (merchant ? "COMERCIO" : "REPARTIDOR")
                                 + "\",\"promedio\":null,\"cantidadResenas\":0}"));
-                    } else if (status.equals("200")) {
+                    } else if (status.equals("200") && path.endsWith("/metrics")) {
+                        json.addExamples("conMetricas", example("""
+                                [{"fuente":"RESENAS","tipoMetrica":"CANTIDAD_RESENAS","periodoDesde":"2026-11-01","periodoHasta":"2026-11-09","valor":3}]
+                                """));
+                        json.addExamples("sinSnapshots", example("[]"));
+                    } else if (status.equals("200") && path.endsWith("/dashboard")) {
                         String dashboard = """
                                 {"generadoEn":"2026-10-30T12:00:00","metricas":[{"fuente":"RESENAS","tipoMetrica":"CANTIDAD_RESENAS","periodoDesde":"2026-10-01","periodoHasta":"2026-10-30","valor":0},{"fuente":"RESENAS","tipoMetrica":"PROMEDIO_CALIFICACION","periodoDesde":"2026-10-01","periodoHasta":"2026-10-30","valor":null},{"fuente":"PEDIDOS","tipoMetrica":"PEDIDOS_ENTREGADOS","periodoDesde":"2026-10-01","periodoHasta":"2026-10-30","valor":2}],"parcial":false}
                                 """;
@@ -69,22 +73,23 @@ public class OpenApiConfig {
                             case "409" -> "DUPLICATE_REVIEW";
                             case "422" -> "BUSINESS_RULE_VIOLATION";
                             case "503" -> "EXTERNAL_SERVICE_UNAVAILABLE";
-                            default -> path.endsWith("dashboard") ? "INVALID_PERIOD" : "INVALID_RATING";
+                            default -> (path.endsWith("dashboard") || path.endsWith("/metrics")) ? "INVALID_PERIOD" : "INVALID_RATING";
                         };
                         String message = switch (code) {
                             case "DUPLICATE_REVIEW" -> "Ya existe una reseña para ese pedido y tipo";
                             case "BUSINESS_RULE_VIOLATION" -> "El pedido no fue entregado";
                             case "EXTERNAL_SERVICE_UNAVAILABLE" -> "Servicio externo no disponible";
-                            case "INVALID_PERIOD" -> "El periodo es invalido";
+                            case "INVALID_PERIOD" -> path.endsWith("/metrics")
+                                    ? "Ambas fechas son obligatorias y periodoDesde debe ser igual o anterior a periodoHasta"
+                                    : "El periodo es invalido";
                             default -> "La puntuación debe estar entre 1 y 5";
                         };
                         json.addExamples("negocio", example("{\"timestamp\":\"2026-10-30T12:00:00Z\",\"status\":"
                                 + status + ",\"code\":\"" + code + "\",\"message\":\"" + message
                                 + "\",\"path\":\"" + path + "\",\"correlationId\":\"2aa05de5-76a4-46e3-a7a1-e4572cf602a6\"}"));
-                        if (status.equals("400") && path.endsWith("dashboard")) {
-                            json.addExamples("fechaMalFormada", example("""
-                                    {"timestamp":"2026-10-30T12:00:00Z","status":400,"error":"Bad Request","path":"/api/v1/analytics/dashboard"}
-                                    """));
+                        if (status.equals("400") && (path.endsWith("dashboard") || path.endsWith("/metrics"))) {
+                            json.addExamples("fechaMalFormada", example("{\"timestamp\":\"2026-10-30T12:00:00Z\","
+                                    + "\"status\":400,\"error\":\"Bad Request\",\"path\":\"" + path + "\"}"));
                         }
                     }
                 });
@@ -94,7 +99,7 @@ public class OpenApiConfig {
 
     private static Example example(String json) {
         try {
-            return new Example().value(io.swagger.v3.core.util.Json.mapper().readValue(json, Map.class));
+            return new Example().value(io.swagger.v3.core.util.Json.mapper().readValue(json, Object.class));
         } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
             throw new IllegalStateException("Invalid OpenAPI example", ex);
         }
