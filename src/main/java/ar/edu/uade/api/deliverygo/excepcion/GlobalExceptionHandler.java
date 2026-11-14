@@ -64,6 +64,14 @@ public class GlobalExceptionHandler {
 
         return construir(HttpStatus.BAD_REQUEST, ex, request);
     }
+
+    @ExceptionHandler(InvalidAnalyticsEventException.class)
+    public ResponseEntity<ErrorResponseDTO> manejarInvalidAnalyticsEvent(
+            InvalidAnalyticsEventException ex, HttpServletRequest request){
+        return construir(HttpStatus.BAD_REQUEST, ex, request);
+    }
+
+
     private String correlationId(HttpServletRequest request) {
         String incoming = request.getHeader("X-Correlation-Id");
         if (incoming != null) {
@@ -85,6 +93,7 @@ public class GlobalExceptionHandler {
         if (ex instanceof InvalidPeriodException) return "INVALID_PERIOD";
         if (ex instanceof ExternalServiceUnavailableException) return "EXTERNAL_SERVICE_UNAVAILABLE";
         if (ex instanceof InvalidOrderIdException) return "INVALID_ORDER_ID";
+        if (ex instanceof InvalidAnalyticsEventException) return "INVALID_ANALYTICS_EVENT";
         return "BUSINESS_RULE_VIOLATION";
     }
 
