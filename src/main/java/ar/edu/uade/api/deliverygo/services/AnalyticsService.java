@@ -1,16 +1,14 @@
 package ar.edu.uade.api.deliverygo.services;
 
 import ar.edu.uade.api.deliverygo.client.PedidosClient;
-import ar.edu.uade.api.deliverygo.dto.DashboardResponse;
-import ar.edu.uade.api.deliverygo.dto.MetricaResumen;
-import ar.edu.uade.api.deliverygo.dto.OrdersStatsDTO;
+import ar.edu.uade.api.deliverygo.dto.*;
 import ar.edu.uade.api.deliverygo.excepcion.ExternalServiceUnavailableException;
+import ar.edu.uade.api.deliverygo.excepcion.InvalidAnalyticsEventException;
 import ar.edu.uade.api.deliverygo.excepcion.InvalidPeriodException;
+import ar.edu.uade.api.deliverygo.mapper.EventoAnaliticoMapper;
 import ar.edu.uade.api.deliverygo.mapper.MetricaMapper;
-import ar.edu.uade.api.deliverygo.model.FuenteMetrica;
-import ar.edu.uade.api.deliverygo.model.Metrica;
-import ar.edu.uade.api.deliverygo.model.Resena;
-import ar.edu.uade.api.deliverygo.model.TipoMetrica;
+import ar.edu.uade.api.deliverygo.model.*;
+import ar.edu.uade.api.deliverygo.repository.EventoAnaliticoRepository;
 import ar.edu.uade.api.deliverygo.repository.MetricaRepository;
 import ar.edu.uade.api.deliverygo.repository.ResenaRepository;
 import org.springframework.stereotype.Service;
@@ -28,11 +26,14 @@ import java.util.List;
 public class AnalyticsService {
     private  final ResenaRepository resenaRepository;
     private final MetricaRepository metricaRepository;
+    private final EventoAnaliticoRepository eventoAnaliticoRepository;
     private final PedidosClient pedidosClient;
 
-    public AnalyticsService(ResenaRepository resenaRepository, MetricaRepository metricaRepository, PedidosClient pedidosClient) {
+
+    public AnalyticsService(ResenaRepository resenaRepository, MetricaRepository metricaRepository, EventoAnaliticoRepository eventoAnaliticoRepository,PedidosClient pedidosClient) {
         this.resenaRepository = resenaRepository;
         this.metricaRepository = metricaRepository;
+        this.eventoAnaliticoRepository = eventoAnaliticoRepository;
         this.pedidosClient = pedidosClient;
     }
 
@@ -110,6 +111,35 @@ public class AnalyticsService {
                 .map(MetricaMapper::toResponse)
                 .toList();
     }
+
+    // SRV-04 (CU-06)
+    @Transactional
+    public EventoAnaliticoResponse registrarEvento(EventoAnaliticoRequest request) {
+
+        // RN-09: campos obligatorios
+        validarEvento(request);
+
+        // REP-06
+        EventoAnalitico evento = EventoAnaliticoMapper.toEntity(request);
+        eventoAnaliticoRepository.save(evento);
+
+        return EventoAnaliticoMapper.toResponse(evento);
+    }
+
+    // RN-09: tipoEvento, moduloOrigen, entidadId y fechaEvento son obligatorios
+    private void validarEvento(EventoAnaliticoRequest request) {
+        List<String> faltantes = new ArrayList<>();
+        if (request.getTipoEvento() == null) faltantes.add("tipoEvento");
+        if (request.getModuloOrigen() == null) faltantes.add("moduloOrigen");
+        if (request.getEntidadId() == null) faltantes.add("entidadId");
+        if (request.getFechaEvento() == null) faltantes.add("fechaEvento");
+
+        if (!faltantes.isEmpty()) {
+            throw new InvalidAnalyticsEventException(
+                    "Faltan campos obligatorios del evento: " + String.join(", ", faltantes));
+        }
+    }
+
 
     // RN-06: upsert. REP-05 busca el snapshot del período exacto y REP-04 lo persiste.
     private MetricaResumen guardarSnapshot(FuenteMetrica fuente, TipoMetrica tipo,
