@@ -30,3 +30,4 @@ target/
 .idea/
 *.iml
 out/
+docs/local
