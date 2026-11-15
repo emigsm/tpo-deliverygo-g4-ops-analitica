@@ -102,6 +102,9 @@ public class AnalyticsService {
         // CU-09 / DM-18: las métricas de pagos forman parte del mismo tablero.
         metricas.addAll(analizarPagos(desde, hasta));
 
+        // CU-10 / DM-18: entregas y tiempo promedio en el mismo tablero.
+        metricas.addAll(analizarEntregas(desde, hasta));
+
         // 5- Devolver al controller
         return new DashboardResponse(LocalDateTime.now(), metricas, parcial);
 
