@@ -94,7 +94,10 @@ public class AnalyticsService {
             metricas.add(MetricaMapper.toResponse(snapshot));
             parcial = true;
         }
-
+        
+        //CU-08: pedidos cancelados en el tablero
+        metricas.add(analizarPedidosCancelados(desde, hasta));
+        
         // CU-09 / DM-18: las métricas de pagos forman parte del mismo tablero.
         metricas.addAll(analizarPagos(desde, hasta));
 
@@ -188,6 +191,25 @@ public class AnalyticsService {
         return MetricaMapper.toResponse(metrica);
     }
 
+    // SRV-06 (CU-08): cuenta eventos de cancelación del período y guarda el snapshot (RN-03, RN-06)
+    @Transactional
+    public MetricaResumen analizarPedidosCancelados(LocalDate periodoDesde, LocalDate periodoHasta) {
 
+        // REP-07 filtra por tipo y fecha. Between es inclusivo: el fin es el último instante
+        // del día con 6 decimales, para que el día "hasta" entre completo.
+        List<EventoAnalitico> eventos = eventoAnaliticoRepository.findByTipoEventoAndFechaEventoBetween(
+                TipoEvento.PEDIDO_ESTADO_CAMBIADO,
+                periodoDesde.atStartOfDay(),
+                periodoHasta.atTime(23, 59, 59, 999_999_000));
+
+        // REP-07 no filtra por detalle: de todos los cambios de estado, solo cuentan los CANCELADO
+        long cancelados = eventos.stream()
+                .filter(e -> "CANCELADO".equals(e.getDetalle()))
+                .count();
+
+        // Sin cancelaciones el valor es 0 y se persiste (a diferencia del promedio, que es null)
+        return guardarSnapshot(FuenteMetrica.PEDIDOS, TipoMetrica.CANTIDAD_PEDIDOS_CANCELADOS,
+                periodoDesde, periodoHasta, BigDecimal.valueOf(cancelados));
+    }
 
 }
