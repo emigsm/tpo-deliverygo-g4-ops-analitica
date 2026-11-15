@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import ar.edu.uade.api.deliverygo.mapper.ResenaMapper;
 import ar.edu.uade.api.deliverygo.excepcion.InvalidOrderIdException;
 import ar.edu.uade.api.deliverygo.excepcion.InvalidTargetTypeException;
+import ar.edu.uade.api.deliverygo.excepcion.InvalidCommentException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -54,6 +55,7 @@ public class ReviewService {
     public ResenaResponse crearResena(ResenaRequest resenaRequest, Long usuarioIdAutenticado) {
         validarPedidoId(resenaRequest.getPedidoId());
         validarTipoObjetivo(resenaRequest.getTipoObjetivo());
+        validarComentario(resenaRequest.getComentario());
 
         //INT-01, RN-01 (entregado) y RN-07 (dueño); objetivoId sale del PedidoDTO
         PedidoDTO pedido = pedidosClient.obtenerPedido(resenaRequest.getPedidoId()).orElseThrow(() -> new OrderNotDeliveredException("El pedido " + resenaRequest.getPedidoId() + " no existe"));
@@ -104,6 +106,9 @@ public class ReviewService {
     }
 
     private void validarObjetivo(TipoObjetivo tipoObjetivo, Long objetivoId) {
+        if (objetivoId == null) {
+            throw new ExternalEntityInvalidException("El pedido no tiene un objetivo de tipo " + tipoObjetivo);
+        }
         if (tipoObjetivo == TipoObjetivo.COMERCIO) {
             //validar que existe el comercio
             ComercioDTO comercio = comercioClient.obtenerComercio(objetivoId).orElseThrow(() -> new ExternalEntityInvalidException("El comercio " + objetivoId + " no existe"));
@@ -132,6 +137,12 @@ public class ReviewService {
     private void validarTipoObjetivo(TipoObjetivo tipoObjetivo) {
         if (tipoObjetivo == null) {
             throw new InvalidTargetTypeException("El tipo de objetivo es obligatorio");
+        }
+    }
+
+    private void validarComentario(String comentario) {
+        if (comentario != null && comentario.length() > 1000) {
+            throw new InvalidCommentException("El comentario no puede superar los 1000 caracteres");
         }
     }
 
