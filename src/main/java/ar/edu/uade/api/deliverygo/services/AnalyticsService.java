@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 
 @Service
@@ -101,6 +102,9 @@ public class AnalyticsService {
         // CU-09 / DM-18: las métricas de pagos forman parte del mismo tablero.
         metricas.addAll(analizarPagos(desde, hasta));
 
+        // CU-10 / DM-18: entregas y tiempo promedio en el mismo tablero.
+        metricas.addAll(analizarEntregas(desde, hasta));
+
         // 5- Devolver al controller
         return new DashboardResponse(LocalDateTime.now(), metricas, parcial);
 
@@ -146,7 +150,44 @@ public class AnalyticsService {
         return metricas;
     }
 
-    // SRV-04 (CU-06)
+    @Transactional
+    public List<MetricaResumen> analizarEntregas(LocalDate periodoDesde, LocalDate periodoHasta) {
+        LocalDate hoy = LocalDate.now();
+        periodoDesde = periodoDesde == null ? hoy : periodoDesde;
+        periodoHasta = periodoHasta == null ? hoy : periodoHasta;
+        if (periodoDesde.isAfter(periodoHasta)) {
+            throw new InvalidPeriodException("El periodo es invalido");
+        }
+
+        LocalDateTime desde = periodoDesde.atStartOfDay();
+        LocalDateTime hasta = periodoHasta.atTime(LocalTime.MAX);
+        List<EventoAnalitico> entregas = eventoAnaliticoRepository
+                .findByTipoEventoAndFechaEventoBetween(TipoEvento.ENTREGA_COMPLETADA, desde, hasta);
+
+        List<MetricaResumen> metricas = new ArrayList<>();
+        metricas.add(guardarSnapshot(FuenteMetrica.LOGISTICA, TipoMetrica.CANTIDAD_ENTREGAS,
+                periodoDesde, periodoHasta, BigDecimal.valueOf(entregas.size())));
+
+        // Solo promedian las entregas que informan valor (minutos)
+        List<BigDecimal> tiempos = entregas.stream()
+                .map(EventoAnalitico::getValor)
+                .filter(Objects::nonNull)
+                .toList();
+
+        if (tiempos.isEmpty()) {
+            // Sin tiempos no hay promedio. No se persiste: Metrica.valor es NOT NULL.
+            metricas.add(new MetricaResumen(FuenteMetrica.LOGISTICA, TipoMetrica.TIEMPO_PROMEDIO_ENTREGA,
+                    periodoDesde, periodoHasta, null));
+        } else {
+            BigDecimal suma = tiempos.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal promedio = suma.divide(BigDecimal.valueOf(tiempos.size()), 2, RoundingMode.HALF_UP);
+            metricas.add(guardarSnapshot(FuenteMetrica.LOGISTICA, TipoMetrica.TIEMPO_PROMEDIO_ENTREGA,
+                    periodoDesde, periodoHasta, promedio));
+        }
+        return metricas;
+    }
+
+        // SRV-04 (CU-06)
     @Transactional
     public EventoAnaliticoResponse registrarEvento(EventoAnaliticoRequest request) {
 
