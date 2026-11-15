@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -94,6 +95,9 @@ public class AnalyticsService {
             parcial = true;
         }
 
+        // CU-09 / DM-18: las métricas de pagos forman parte del mismo tablero.
+        metricas.addAll(analizarPagos(desde, hasta));
+
         // 5- Devolver al controller
         return new DashboardResponse(LocalDateTime.now(), metricas, parcial);
 
@@ -110,6 +114,33 @@ public class AnalyticsService {
                 .stream()
                 .map(MetricaMapper::toResponse)
                 .toList();
+    }
+
+    // SRV-07 / REP-07 (CU-09): contar eventos de pagos y actualizar sus snapshots.
+    @Transactional
+    public List<MetricaResumen> analizarPagos(LocalDate periodoDesde, LocalDate periodoHasta) {
+        LocalDate hoy = LocalDate.now();
+        periodoDesde = periodoDesde == null ? hoy : periodoDesde;
+        periodoHasta = periodoHasta == null ? hoy : periodoHasta;
+        if (periodoDesde.isAfter(periodoHasta)) {
+            throw new InvalidPeriodException("El periodo es invalido");
+        }
+
+        LocalDateTime desde = periodoDesde.atStartOfDay();
+        LocalDateTime hasta = periodoHasta.atTime(LocalTime.MAX);
+        long aprobados = eventoAnaliticoRepository
+                .findByTipoEventoAndFechaEventoBetween(TipoEvento.PAGO_APROBADO, desde, hasta)
+                .size();
+        long rechazados = eventoAnaliticoRepository
+                .findByTipoEventoAndFechaEventoBetween(TipoEvento.PAGO_RECHAZADO, desde, hasta)
+                .size();
+
+        List<MetricaResumen> metricas = new ArrayList<>();
+        metricas.add(guardarSnapshot(FuenteMetrica.PAGOS, TipoMetrica.CANTIDAD_PAGOS_APROBADOS,
+                periodoDesde, periodoHasta, BigDecimal.valueOf(aprobados)));
+        metricas.add(guardarSnapshot(FuenteMetrica.PAGOS, TipoMetrica.CANTIDAD_PAGOS_RECHAZADOS,
+                periodoDesde, periodoHasta, BigDecimal.valueOf(rechazados)));
+        return metricas;
     }
 
     // SRV-04 (CU-06)

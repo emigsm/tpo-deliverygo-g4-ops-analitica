@@ -4,5 +4,6 @@ package ar.edu.uade.api.deliverygo.model;
 
 public enum FuenteMetrica {
     RESENAS,
-    PEDIDOS
+    PEDIDOS,
+    PAGOS
 }
