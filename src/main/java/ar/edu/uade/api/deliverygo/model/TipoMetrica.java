@@ -5,5 +5,6 @@ package ar.edu.uade.api.deliverygo.model;
 public enum TipoMetrica {
     PROMEDIO_CALIFICACION,
     CANTIDAD_RESENAS,
-    PEDIDOS_ENTREGADOS
+    PEDIDOS_ENTREGADOS,
+    CANTIDAD_PEDIDOS_CANCELADOS
 }
