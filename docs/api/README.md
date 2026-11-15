@@ -168,7 +168,7 @@ valor obligatorio en minutos para entregas y ninguno requerido para pagos.
 
 API-06: confirmar si el rango contiene períodos completos, incluye solapamientos
 y qué límites aplica; REP-08 sugiere contención, sin cerrar el acuerdo.
-También sigue pendiente la persistencia del promedio de entrega null de CU-10
+También sigue pendiente la persistencia del promedio de entrega null de CU-10# hecho
 frente al NOT NULL actual. INT-05 continúa pendiente de acuerdo con Pedidos.
 
 ## Verificación de Task 05

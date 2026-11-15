@@ -25,7 +25,7 @@ para aislar integraciones. [Arquitectura y decisiones](docs/arquitectura.md).
 | [CU-07](docs/casos-de-uso.md#cu-07) | Consultar métricas por período | Evolución pendiente |
 | [CU-08](docs/casos-de-uso.md#cu-08) | Analizar cantidad y estado de pedidos | Evolución pendiente |
 | [CU-09](docs/casos-de-uso.md#cu-09) | Analizar pagos aprobados y rechazados | Evolución pendiente |
-| [CU-10](docs/casos-de-uso.md#cu-10) | Analizar tiempos y entregas | Evolución pendiente |
+| [CU-10](docs/casos-de-uso.md#cu-10) | Analizar tiempos y entregas | Implementado |
 
 ## API REST
 
