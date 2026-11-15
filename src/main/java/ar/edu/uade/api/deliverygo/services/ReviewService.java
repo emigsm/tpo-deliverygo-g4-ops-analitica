@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ar.edu.uade.api.deliverygo.mapper.ResenaMapper;
 import ar.edu.uade.api.deliverygo.excepcion.InvalidOrderIdException;
+import ar.edu.uade.api.deliverygo.excepcion.InvalidTargetTypeException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -51,7 +52,8 @@ public class ReviewService {
     // SRV-01 (CU-01, CU-02)
     @Transactional
     public ResenaResponse crearResena(ResenaRequest resenaRequest, Long usuarioIdAutenticado) {
-            validarPedidoId(resenaRequest.getPedidoId());
+        validarPedidoId(resenaRequest.getPedidoId());
+        validarTipoObjetivo(resenaRequest.getTipoObjetivo());
 
         //INT-01, RN-01 (entregado) y RN-07 (dueño); objetivoId sale del PedidoDTO
         PedidoDTO pedido = pedidosClient.obtenerPedido(resenaRequest.getPedidoId()).orElseThrow(() -> new OrderNotDeliveredException("El pedido " + resenaRequest.getPedidoId() + " no existe"));
@@ -125,6 +127,12 @@ public class ReviewService {
                 "El identificador del pedido es obligatorio y debe ser mayor que cero"
         );
     }
+    }
+
+    private void validarTipoObjetivo(TipoObjetivo tipoObjetivo) {
+        if (tipoObjetivo == null) {
+            throw new InvalidTargetTypeException("El tipo de objetivo es obligatorio");
+        }
     }
 
     private void validarPuntuacion(Integer puntuacion) {
