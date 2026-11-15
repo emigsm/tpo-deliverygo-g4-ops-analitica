@@ -72,6 +72,12 @@ public class GlobalExceptionHandler {
     }
 
 
+    @ExceptionHandler(InvalidTargetTypeException.class)
+    public ResponseEntity<ErrorResponseDTO> manejarInvalidTargetType(
+            InvalidTargetTypeException ex, HttpServletRequest request) {
+        return construir(HttpStatus.BAD_REQUEST, ex, request);
+    }
+
     private String correlationId(HttpServletRequest request) {
         String incoming = request.getHeader("X-Correlation-Id");
         if (incoming != null) {
@@ -90,6 +96,7 @@ public class GlobalExceptionHandler {
     private String codigo(RuntimeException ex) {
         if (ex instanceof DuplicateReviewException) return "DUPLICATE_REVIEW";
         if (ex instanceof InvalidRatingException) return "INVALID_RATING";
+        if (ex instanceof InvalidTargetTypeException) return "INVALID_TARGET_TYPE";
         if (ex instanceof InvalidPeriodException) return "INVALID_PERIOD";
         if (ex instanceof ExternalServiceUnavailableException) return "EXTERNAL_SERVICE_UNAVAILABLE";
         if (ex instanceof InvalidOrderIdException) return "INVALID_ORDER_ID";

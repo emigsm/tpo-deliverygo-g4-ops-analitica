@@ -80,3 +80,19 @@ Los clientes de errores manejados deben migrar de error/mensaje a code/message,
 aceptar timestamp UTC y correlationId. X-Correlation-Id reutiliza UUID canónicos;
 si falta o es inválido se genera UUID. Errores del framework y seguridad conservan
 su estructura. Véase el [impacto incompatible](api/README.md#cambio-incompatible-del-contrato-de-errores).
+
+## Responsabilidades de evolucion (propuestas)
+
+| API | Direccion | Responsabilidad |
+| --- | --- | --- |
+| API-05 | Entrante | Pedidos, Pagos y Logistica envian eventos operativos |
+| API-06 | Respuestas salientes | Consumidores potenciales consultan resultados sin llamadas externas adicionales |
+| API-04 | Respuestas salientes y dependencia interna | Consumidores consultan el tablero; depende de Pedidos mediante INT-05 propuesto |
+
+Pedidos debe enviar cambios de estado, especialmente cancelaciones, y acordar
+INT-05 (`GET /api/v1/orders/stats`). Pagos envia pagos aprobados y rechazados.
+Logistica envia entregas completadas y duraciones en minutos.
+Opiniones y Analitica recibe y persiste eventos, calcula y persiste metricas
+y expone resultados mediante API-06 y API-04.
+API-06 es un contrato de salida de datos: ningun modulo consumidor obligatorio
+ha sido confirmado. La consulta no recalcula ni llama a otros modulos.

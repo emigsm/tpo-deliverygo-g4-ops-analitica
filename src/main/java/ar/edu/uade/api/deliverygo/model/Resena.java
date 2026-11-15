@@ -1,10 +1,12 @@
 package ar.edu.uade.api.deliverygo.model;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Check;
 import java.time.LocalDateTime;
 
 // RN-05: Una reseña es inmutable una vez creada. No hay endpoints PUT/DELETE
 @Entity
 @Table(name = "resenas", uniqueConstraints = @UniqueConstraint(name = "uk_resena_usuario_pedido_tipo", columnNames = {"usuario_id", "pedido_id", "tipo_objetivo"}))
+@Check(name = "ck_resena_puntuacion", constraints = "puntuacion BETWEEN 1 AND 5")
 public class Resena {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

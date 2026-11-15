@@ -12,10 +12,15 @@ paths:
   /api/v1/analytics/events:
     post:
       operationId: propuestoRegistrarEvento
-      summary: API-05 — CU-06 — Propuesto
-      description: 'RN-09: campos comunes obligatorios. No utiliza X-Usuario-Id. Autenticación
-        entre servicios pendiente; no se promete ausencia de autenticación. Idempotencia
-        y prevención de duplicados pendientes.'
+      summary: Registrar evento analítico
+      description: |
+        CU-06, RN-09: registra eventos operativos enviados por otros módulos de DeliveryGo para su posterior procesamiento analítico.
+
+        Admite cambios de estado de pedidos, pagos aprobados, pagos rechazados y entregas completadas.
+
+        Los campos tipoEvento, moduloOrigen, entidadId y fechaEvento son obligatorios. Para cambios de estado de pedidos, detalle identifica el nuevo estado. Para entregas completadas, valor representa la duración en minutos.
+
+        Los eventos registrados permiten calcular métricas operativas que posteriormente se consultan mediante API-06 y API-04.
       requestBody:
         required: true
         content:
@@ -29,6 +34,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EventoAnaliticoResponse'
+        '409':
+          description: 'Solo propuesto: pendiente del acuerdo de idempotencia y deteccion de duplicados; no garantizado.'
         '400': &id001
           description: 'Propuesto: entrada inválida. No representa un endpoint implementado.'
           content:
@@ -38,10 +45,17 @@ paths:
   /api/v1/analytics/metrics:
     get:
       operationId: propuestoConsultarMetricas
-      summary: API-06 — CU-07 — Propuesto
-      description: 'Lee snapshots, sin recalcular. Sin snapshots: 200 con []. Rango
-        invertido o fechas inválidas: 400 propuesto. REP-08 sugiere períodos contenidos
-        en el rango; inclusión, solapamiento y límites pendientes de confirmación.'
+      summary: Consultar métricas por período
+      description: |
+        CU-07: consulta las métricas analíticas previamente calculadas y almacenadas por el módulo Opiniones y Analítica para el período solicitado.
+
+        Requiere periodoDesde y periodoHasta en formato ISO-8601 (yyyy-MM-dd).
+
+        Devuelve una lista de MetricaResumen (DTO-10), con fuente, tipo de métrica, período y valor.
+
+        No requiere llamadas a otros módulos durante la consulta y no recalcula métricas en tiempo real.
+
+        Cuando no existen métricas para el período, devuelve una lista vacía.
       parameters:
       - name: periodoDesde
         in: query
@@ -70,6 +84,49 @@ paths:
                 sinSnapshots:
                   value: []
         '400': *id001
+  /api/v1/analytics/dashboard:
+    get:
+      operationId: propuestoConsultarTablero
+      summary: Consultar tablero de métricas operativas
+      description: |
+        CU-05, CU-08, CU-09 y CU-10; RN-03 y RN-06: obtiene un tablero consolidado de métricas operativas para el período solicitado.
+
+        Incluye cantidad de reseñas, promedio de calificación, pedidos entregados y cancelados, pagos aprobados y rechazados, entregas completadas y tiempo promedio de entrega.
+
+        Las fechas son opcionales; cuando se omiten se utiliza la fecha actual del servidor. Ambos extremos son inclusivos.
+
+        Combina información de reseñas propias, estadísticas externas de Pedidos y eventos analíticos registrados mediante API-05.
+
+        Los resultados se almacenan como snapshots. Cuando una fuente externa no está disponible, puede utilizarse un respaldo válido del período correspondiente, indicado mediante parcial=true.
+      parameters:
+      - name: periodoDesde
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      - name: periodoHasta
+        in: query
+        required: false
+        schema:
+          type: string
+          format: date
+      responses:
+        '200':
+          description: DTO-04 ampliado propuesto; no implementado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  generadoEn:
+                    $ref: ./openapi.yaml#/components/schemas/DashboardResponse/properties/generadoEn
+                  parcial:
+                    type: boolean
+                  metricas:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MetricaResumen'
 components:
   schemas:
     EventoAnaliticoRequest:
