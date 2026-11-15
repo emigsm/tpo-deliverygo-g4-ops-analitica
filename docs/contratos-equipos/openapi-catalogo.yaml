@@ -1,0 +1,1077 @@
+openapi: 3.1.0
+info:
+  description: "API del módulo Comercios y Catálogo (Grupo 07). Administra comercios,\
+    \ productos, precios y disponibilidad, y expone el catálogo que consumen Pedidos\
+    \ y el Portal Web."
+  title: DeliveryGo - Módulo Comercios y Catálogo
+  version: v1
+servers:
+- description: Entorno local
+  url: http://localhost:8082
+tags:
+- description: "Búsqueda pública del catálogo (CU-05), consumida por Portal Web y\
+    \ Pedidos (INT-03)"
+  name: Catálogo
+- description: ABM de sucursales de un comercio (CU-07)
+  name: Sucursales
+- description: "Alta, consulta y modificación de comercios (CU-01, CU-10, API-14)"
+  name: Comercios
+- description: "Alta, consulta, precio, disponibilidad y estado de productos (CU-02,\
+    \ CU-03, CU-04, CU-06, CU-09)"
+  name: Productos
+- description: ABM del catálogo global de categorías (CU-08)
+  name: Categorías
+paths:
+  /api/v1/catalogo:
+    get:
+      description: Devuelve una página de productos activos y disponibles de comercios
+        activos (RN-05) que cumplen los criterios. Todos los filtros son opcionales.
+        Sin resultados responde 200 con la lista vacía.
+      operationId: buscarCatalogo
+      parameters:
+      - description: Busca en nombre y descripción del producto y en la razón social
+          del comercio
+        in: query
+        name: texto
+        required: false
+        schema:
+          type: string
+      - description: "Una o más categorías: ?categoriaId=1&categoriaId=3"
+        in: query
+        name: categoriaId
+        required: false
+        schema:
+          type: array
+          items:
+            type: integer
+            format: int64
+      - description: Solo productos de este comercio
+        in: query
+        name: comercioId
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - description: "Precio mínimo, mayor o igual a 0"
+        in: query
+        name: precioMin
+        required: false
+        schema:
+          type: number
+      - description: "Precio máximo, mayor o igual a precioMin"
+        in: query
+        name: precioMax
+        required: false
+        schema:
+          type: number
+      - description: "Número de página, desde 0"
+        in: query
+        name: page
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 0
+      - description: "Tamaño de página, entre 1 y 100"
+        in: query
+        name: size
+        required: false
+        schema:
+          type: integer
+          format: int32
+          default: 20
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CatalogoResponseDTO"
+          description: "Página de resultados, puede estar vacía"
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Criterios inválidos: precioMin > precioMax, valores negativos,\
+            \ page < 0, size fuera de 1 a 100 o parámetro con tipo incorrecto"
+      summary: Buscar catálogo
+      tags:
+      - Catálogo
+  /api/v1/categorias:
+    get:
+      description: "Devuelve todas las categorías del catálogo global. Endpoint pú\
+        blico, sin token: lo usa el formulario de alta de producto para elegir categorí\
+        as (RN-03)."
+      operationId: listarCategorias
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CategoriaDTO"
+          description: Lista de categorías
+      summary: Listar categorías
+      tags:
+      - Categorías
+    post:
+      description: Agrega una categoría al catálogo global. Solo rol Administrador.
+      operationId: crearCategoria
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoriaRequestDTO"
+        required: true
+      responses:
+        "201":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CategoriaDTO"
+          description: Categoría creada
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Nombre faltante (RN-06)
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Falta el token o es inválido (DM-15)
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Usuario sin rol ADMIN (DM-15)
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Ya existe una categoría con ese nombre, sin distinguir mayú\
+            sculas ni espacios exteriores (DM-20)"
+      security:
+      - bearerAuth: []
+      summary: Crear categoría
+      tags:
+      - Categorías
+  /api/v1/categorias/{id}:
+    delete:
+      description: "Elimina una categoría del catálogo global. Solo rol Administrador.\
+        \ No se puede eliminar si tiene productos asociados, porque esos productos\
+        \ quedarían sin categoría (RN-03)."
+      operationId: eliminarCategoria
+      parameters:
+      - description: Id de la categoría
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: Categoría eliminada
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Falta el token o es inválido (DM-15)
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Usuario sin rol ADMIN (DM-15)
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Categoría inexistente
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: La categoría tiene productos asociados (RN-03)
+      security:
+      - bearerAuth: []
+      summary: Eliminar categoría
+      tags:
+      - Categorías
+    put:
+      description: Cambia el nombre de una categoría. Solo rol Administrador.
+      operationId: modificarCategoria
+      parameters:
+      - description: Id de la categoría
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoriaRequestDTO"
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/CategoriaDTO"
+          description: Categoría actualizada
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Nombre faltante (RN-06), o id no numérico"
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Falta el token o es inválido (DM-15)
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Usuario sin rol ADMIN (DM-15)
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Categoría inexistente
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Otra categoría ya tiene ese nombre, sin distinguir mayúsculas\
+            \ ni espacios exteriores (DM-20)"
+      security:
+      - bearerAuth: []
+      summary: Modificar categoría
+      tags:
+      - Categorías
+  /api/v1/comercios:
+    post:
+      description: Da de alta un comercio validando que el CUIT no esté registrado
+        (RN-01) y que no falten datos obligatorios (RN-06). Requiere el token JWT
+        emitido por el módulo Usuarios (INT-01) con rol COMERCIO o ADMIN. El comercio
+        se crea con estado ACTIVO.
+      operationId: registrarComercio
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrearComercioRequestDTO"
+        required: true
+      responses:
+        "201":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ComercioResponseDTO"
+          description: Comercio creado con estado ACTIVO
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Dato obligatorio faltante o CUIT con formato inválido (RN-06)
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Falta el token o es inválido (INT-01, DM-15)"
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Usuario sin rol COMERCIO o ADMIN (DM-15)
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Ya existe un comercio con ese CUIT (RN-01)
+      security:
+      - bearerAuth: []
+      summary: Registrar comercio
+      tags:
+      - Comercios
+  /api/v1/comercios/{comercioId}/sucursales:
+    get:
+      description: "Devuelve las sucursales de un comercio. Endpoint público, sin\
+        \ token."
+      operationId: listarSucursales
+      parameters:
+      - description: Id del comercio
+        in: path
+        name: comercioId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SucursalDTO"
+          description: "Lista de sucursales, puede estar vacía"
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Comercio inexistente
+      summary: Listar sucursales del comercio
+      tags:
+      - Sucursales
+    post:
+      description: Agrega una sucursal al comercio. El comercio debe estar activo
+        (RN-02).
+      operationId: crearSucursal
+      parameters:
+      - description: Id del comercio
+        in: path
+        name: comercioId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SucursalRequestDTO"
+        required: true
+      responses:
+        "201":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SucursalDTO"
+          description: Sucursal creada
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Dirección faltante (RN-06)
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Falta el token o es inválido (DM-15)
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Usuario sin rol COMERCIO o ADMIN (DM-15)
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Comercio inexistente
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: El comercio está inactivo (RN-02)
+      security:
+      - bearerAuth: []
+      summary: Crear sucursal
+      tags:
+      - Sucursales
+  /api/v1/comercios/{comercioId}/sucursales/{id}:
+    delete:
+      description: Elimina una sucursal del comercio. El comercio debe estar activo
+        (RN-02).
+      operationId: eliminarSucursal
+      parameters:
+      - description: Id del comercio
+        in: path
+        name: comercioId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - description: Id de la sucursal
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "204":
+          description: Sucursal eliminada
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Falta el token o es inválido (DM-15)
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Usuario sin rol COMERCIO o ADMIN (DM-15)
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Comercio o sucursal inexistente, o la sucursal no es de ese\
+            \ comercio"
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: El comercio está inactivo (RN-02)
+      security:
+      - bearerAuth: []
+      summary: Eliminar sucursal
+      tags:
+      - Sucursales
+    put:
+      description: Cambia la dirección de una sucursal del comercio. El comercio debe
+        estar activo (RN-02).
+      operationId: modificarSucursal
+      parameters:
+      - description: Id del comercio
+        in: path
+        name: comercioId
+        required: true
+        schema:
+          type: integer
+          format: int64
+      - description: Id de la sucursal
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SucursalRequestDTO"
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SucursalDTO"
+          description: Sucursal actualizada
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Dirección faltante (RN-06)
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Falta el token o es inválido (DM-15)
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Usuario sin rol COMERCIO o ADMIN (DM-15)
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Comercio o sucursal inexistente, o la sucursal no es de ese\
+            \ comercio"
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: El comercio está inactivo (RN-02)
+      security:
+      - bearerAuth: []
+      summary: Modificar sucursal
+      tags:
+      - Sucursales
+  /api/v1/comercios/{id}:
+    get:
+      description: "Devuelve id, CUIT, razón social y estado de un comercio. A diferencia\
+        \ del catálogo, también devuelve comercios INACTIVOS, para que el consumidor\
+        \ pueda ver el estado (DM-18). Endpoint público, sin token."
+      operationId: obtenerComercio
+      parameters:
+      - description: Id del comercio
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ComercioResponseDTO"
+          description: "Datos del comercio, activo o inactivo"
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Comercio inexistente
+      summary: Consultar comercio
+      tags:
+      - Comercios
+    put:
+      description: "Edita razón social, dirección o rubro de un comercio. El CUIT\
+        \ no se puede modificar (RN-01), por eso no forma parte del cuerpo."
+      operationId: modificarComercio
+      parameters:
+      - description: Id del comercio
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModificarComercioRequestDTO"
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ComercioResponseDTO"
+          description: Comercio actualizado
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Dato obligatorio faltante (RN-06), o id no numérico"
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Falta el token o es inválido (DM-15)
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Usuario sin rol COMERCIO o ADMIN (DM-15)
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Comercio inexistente
+      security:
+      - bearerAuth: []
+      summary: Modificar información del comercio
+      tags:
+      - Comercios
+  /api/v1/productos:
+    post:
+      description: Da de alta un producto asociado a un comercio activo (RN-02) y
+        a una o más categorías existentes (RN-03). El precio debe ser mayor a cero
+        (RN-04). Se crea con estado ACTIVO y disponible = true.
+      operationId: publicarProducto
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CrearProductoRequestDTO"
+        required: true
+      responses:
+        "201":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductoResponseDTO"
+          description: Producto creado
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Dato faltante, precio <= 0, sin categorías o categoría inexistente\
+            \ (RN-03, RN-04, RN-06)"
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Falta el token o es inválido (DM-15)
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Rol sin permiso para modificar productos (solo ADMIN o COMERCIO)
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Comercio inexistente o inactivo (RN-02)
+      security:
+      - bearerAuth: []
+      summary: Publicar producto
+      tags:
+      - Productos
+  /api/v1/productos/{id}:
+    get:
+      description: "Devuelve la ficha de un producto por id. Solo muestra productos\
+        \ activos y disponibles de comercios activos (RN-05). Endpoint público, sin\
+        \ token."
+      operationId: obtenerProducto
+      parameters:
+      - description: Id del producto
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductoResponseDTO"
+          description: Ficha del producto
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Id no numérico
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Producto inexistente, inactivo, no disponible o de un comercio\
+            \ inactivo (RN-05)"
+      summary: Consultar detalle de producto
+      tags:
+      - Productos
+  /api/v1/productos/{id}/disponibilidad:
+    patch:
+      description: Habilita o deshabilita un producto. El comercio del producto debe
+        estar activo (RN-02). Un producto no disponible deja de aparecer en el catálogo
+        (RN-05).
+      operationId: cambiarDisponibilidad
+      parameters:
+      - description: Id del producto
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CambiarDisponibilidadRequestDTO"
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductoResponseDTO"
+          description: Disponibilidad actualizada
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Falta el campo disponible, o id no numérico"
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Falta el token o es inválido (DM-15)
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Rol sin permiso para modificar productos (solo ADMIN o COMERCIO)
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Producto inexistente
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: El comercio del producto está inactivo (RN-02)
+      security:
+      - bearerAuth: []
+      summary: Cambiar disponibilidad
+      tags:
+      - Productos
+  /api/v1/productos/{id}/estado:
+    patch:
+      description: "Baja lógica (soft-delete) de un producto: activo = false pasa\
+        \ su estado a INACTIVO y lo saca del catálogo sin borrarlo; activo = true\
+        \ lo vuelve a ACTIVO. Es distinto de cambiar la disponibilidad (CU-04), que\
+        \ es una pausa temporal. El comercio del producto debe estar activo (RN-02)."
+      operationId: cambiarEstado
+      parameters:
+      - description: Id del producto
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CambiarEstadoProductoRequestDTO"
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductoResponseDTO"
+          description: Estado del producto actualizado
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Falta el campo activo, o id no numérico"
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Falta el token o es inválido (DM-15)
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Rol sin permiso para modificar productos (solo ADMIN o COMERCIO)
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Producto inexistente
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: El comercio del producto está inactivo (RN-02)
+      security:
+      - bearerAuth: []
+      summary: Desactivar o reactivar producto
+      tags:
+      - Productos
+  /api/v1/productos/{id}/precio:
+    patch:
+      description: Actualiza el precio vigente de un producto. El comercio del producto
+        debe estar activo (RN-02) y el nuevo precio debe ser mayor a cero (RN-04).
+      operationId: modificarPrecio
+      parameters:
+      - description: Id del producto
+        in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+          format: int64
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModificarPrecioRequestDTO"
+        required: true
+      responses:
+        "200":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ProductoResponseDTO"
+          description: Precio actualizado
+        "400":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: "Precio faltante o <= 0 (RN-04), o id no numérico"
+        "401":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Falta el token o es inválido (DM-15)
+        "403":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Rol sin permiso para modificar productos (solo ADMIN o COMERCIO)
+        "404":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: Producto inexistente
+        "409":
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ErrorResponseDTO"
+          description: El comercio del producto está inactivo (RN-02)
+      security:
+      - bearerAuth: []
+      summary: Modificar precio
+      tags:
+      - Productos
+components:
+  schemas:
+    CambiarDisponibilidadRequestDTO:
+      type: object
+      properties:
+        disponible:
+          type: boolean
+      required:
+      - disponible
+    CambiarEstadoProductoRequestDTO:
+      type: object
+      properties:
+        activo:
+          type: boolean
+      required:
+      - activo
+    CatalogoResponseDTO:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProductoResponseDTO"
+        page:
+          type: integer
+          format: int32
+        size:
+          type: integer
+          format: int32
+        total:
+          type: integer
+          format: int64
+    CategoriaDTO:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        nombre:
+          type: string
+    CategoriaRequestDTO:
+      type: object
+      properties:
+        nombre:
+          type: string
+          minLength: 1
+      required:
+      - nombre
+    ComercioResponseDTO:
+      type: object
+      properties:
+        cuit:
+          type: string
+        estado:
+          type: string
+        id:
+          type: integer
+          format: int64
+        razonSocial:
+          type: string
+    CrearComercioRequestDTO:
+      type: object
+      properties:
+        cuit:
+          type: string
+          minLength: 1
+          pattern: "\\d{11}"
+        direccion:
+          type: string
+          minLength: 1
+        razonSocial:
+          type: string
+          minLength: 1
+        rubro:
+          type: string
+          minLength: 1
+      required:
+      - cuit
+      - direccion
+      - razonSocial
+      - rubro
+    CrearProductoRequestDTO:
+      type: object
+      properties:
+        categoriaIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+          minItems: 1
+        comercioId:
+          type: integer
+          format: int64
+        descripcion:
+          type: string
+          minLength: 1
+        nombre:
+          type: string
+          minLength: 1
+        precio:
+          type: number
+      required:
+      - categoriaIds
+      - comercioId
+      - descripcion
+      - nombre
+      - precio
+    ErrorResponseDTO:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+        status:
+          type: integer
+          format: int32
+        timestamp:
+          type: string
+          format: date-time
+    ModificarComercioRequestDTO:
+      type: object
+      properties:
+        direccion:
+          type: string
+          minLength: 1
+        razonSocial:
+          type: string
+          minLength: 1
+        rubro:
+          type: string
+          minLength: 1
+      required:
+      - direccion
+      - razonSocial
+      - rubro
+    ModificarPrecioRequestDTO:
+      type: object
+      properties:
+        nuevoPrecio:
+          type: number
+      required:
+      - nuevoPrecio
+    ProductoResponseDTO:
+      type: object
+      properties:
+        categorias:
+          type: array
+          items:
+            $ref: "#/components/schemas/CategoriaDTO"
+        comercioId:
+          type: integer
+          format: int64
+        disponible:
+          type: boolean
+        estado:
+          type: string
+        id:
+          type: integer
+          format: int64
+        nombre:
+          type: string
+        precio:
+          type: number
+    SucursalDTO:
+      type: object
+      properties:
+        comercioId:
+          type: integer
+          format: int64
+        direccion:
+          type: string
+        id:
+          type: integer
+          format: int64
+    SucursalRequestDTO:
+      type: object
+      properties:
+        direccion:
+          type: string
+          minLength: 1
+      required:
+      - direccion
+  securitySchemes:
+    bearerAuth:
+      description: Token emitido por el módulo Usuarios al autenticarse el comerciante
+        (INT-01)
+      scheme: bearer
+      type: http

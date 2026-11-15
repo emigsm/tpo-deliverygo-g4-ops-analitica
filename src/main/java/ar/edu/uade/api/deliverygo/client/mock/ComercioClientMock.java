@@ -1,9 +1,7 @@
 package ar.edu.uade.api.deliverygo.client.mock;
-
 import ar.edu.uade.api.deliverygo.client.ComercioClient;
 import ar.edu.uade.api.deliverygo.dto.ComercioDTO;
 import org.springframework.stereotype.Component;
-
 import java.util.Map;
 import java.util.Optional;
 
