@@ -168,8 +168,14 @@ valor obligatorio en minutos para entregas y ninguno requerido para pagos.
 
 API-06: confirmar si el rango contiene períodos completos, incluye solapamientos
 y qué límites aplica; REP-08 sugiere contención, sin cerrar el acuerdo.
-También sigue pendiente la persistencia del promedio de entrega null de CU-10
-frente al NOT NULL actual. INT-05 continúa pendiente de acuerdo con Pedidos.
+El promedio de entregas null de CU-10 no se persiste por el NOT NULL de ENT-02; se devuelve null.
+INT-05 continúa pendiente de acuerdo con Pedidos.
+
+Consumir el contrato implementado para funcionalidad disponible.
+Usar la propuesta para acordar API-05,
+API-06 y la ampliacion de API-04. CU-06 a CU-09 siguen pendientes; CU-10 está implementado.
+Las descripciones Swagger objetivo viven en la propuesta; el Swagger UI actual
+conserva sus cuatro operaciones.
 
 ## Verificación de Task 05
 
