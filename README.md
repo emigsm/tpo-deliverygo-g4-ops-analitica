@@ -5,7 +5,7 @@ consulta calificaciones y genera un tablero de métricas operativas.
 
 ## Tecnologías
 
-Java 25, Spring Boot 3.5.16, Spring Data JPA, H2, Springdoc OpenAPI 2.9.1 y Maven.
+Java 25, Spring Boot 3.5.16, Spring Data JPA, Spring Security, H2, Springdoc OpenAPI 2.9.1 y Maven.
 
 ## Arquitectura
 
@@ -21,11 +21,11 @@ para aislar integraciones. [Arquitectura y decisiones](docs/arquitectura.md).
 | [CU-03](docs/casos-de-uso.md#cu-03) | Consultar promedio de comercio | Implementado |
 | [CU-04](docs/casos-de-uso.md#cu-04) | Consultar promedio de repartidor | Implementado |
 | [CU-05](docs/casos-de-uso.md#cu-05) | Generar tablero de métricas | Implementado con mock de Pedidos |
-| [CU-06](docs/casos-de-uso.md#cu-06) | Registrar evento analítico | Evolución pendiente |
-| [CU-07](docs/casos-de-uso.md#cu-07) | Consultar métricas por período | Evolución pendiente |
-| [CU-08](docs/casos-de-uso.md#cu-08) | Analizar cantidad y estado de pedidos | Evolución pendiente |
-| [CU-09](docs/casos-de-uso.md#cu-09) | Analizar pagos aprobados y rechazados | Evolución pendiente |
-| [CU-10](docs/casos-de-uso.md#cu-10) | Analizar tiempos y entregas | Implementado |
+| [CU-06](docs/casos-de-uso.md#cu-06) | Registrar evento analítico | Implementado |
+| [CU-07](docs/casos-de-uso.md#cu-07) | Consultar métricas por período | Implementado |
+| [CU-08](docs/casos-de-uso.md#cu-08) | Analizar cantidad y estado de pedidos | Implementado (cancelados) |
+| [CU-09](docs/casos-de-uso.md#cu-09) | Analizar pagos aprobados y rechazados | Implementado |
+| [CU-10](docs/casos-de-uso.md#cu-10) | Analizar tiempos y entregas | Evolución pendiente |
 
 ## API REST
 
@@ -34,12 +34,13 @@ para aislar integraciones. [Arquitectura y decisiones](docs/arquitectura.md).
 | API-01 | `POST /api/v1/reviews` | CU-01, CU-02 |
 | API-02 | `GET /api/v1/merchants/{id}/rating` | CU-03 |
 | API-03 | `GET /api/v1/couriers/{id}/rating` | CU-04 |
-| API-04 | `GET /api/v1/analytics/dashboard` | CU-05 |
+| API-04 | `GET /api/v1/analytics/dashboard` | CU-05, CU-08, CU-09 |
+| API-05 | `POST /api/v1/analytics/events` | CU-06 |
+| API-06 | `GET /api/v1/analytics/metrics` | CU-07 |
 
 [Swagger UI](http://localhost:8089/swagger-ui.html).
 [Contratos, ejemplos y exportación OpenAPI](docs/api/README.md).
-[OpenAPI implementado](docs/api/openapi.yaml) ·
-[Evolución propuesta API-05/06](docs/api/openapi-evolucion-propuesta.yaml).
+[OpenAPI implementado](docs/api/openapi.yaml).
 Los errores manejados cambian de contrato: [migración de clientes](docs/api/README.md#cambio-incompatible-del-contrato-de-errores).
 
 ## Instalación y ejecución
@@ -54,7 +55,9 @@ mvn spring-boot:run
 
 La configuración local incluida usa puerto **8089**, H2 en memoria y clientes mock;
 no requiere configurar URLs externas. La identidad temporal de API-01 se envía en
-`X-Usuario-Id`. [Configuración y datos de ejemplo](docs/api/README.md#ejecucion-local).
+`X-Usuario-Id`. Spring Security está autoconfigurado: las APIs requieren credenciales
+(usuario `user`, contraseña generada en el log salvo configuración explícita); JWT
+sigue pendiente. [Configuración y datos de ejemplo](docs/api/README.md#ejecucion-local).
 
 - API: <http://localhost:8089/api/v1>
 - OpenAPI: <http://localhost:8089/v3/api-docs.yaml>
@@ -63,8 +66,9 @@ no requiere configurar URLs externas. La identidad temporal de API-01 se envía 
 ## Integraciones externas
 
 Usuarios, Pedidos, Comercios y Logística cuentan con adaptadores y mocks locales;
-no hay clientes HTTP reales. Pagos pertenece a la evolución mediante eventos.
-**INT-05 es propuesto y está pendiente de confirmación con Pedidos.**
+no hay clientes HTTP reales. Los eventos de Pedidos, Pagos y Logística ingresan por
+API-05 (CU-06) y se analizan en el tablero. **INT-05 es propuesto y está pendiente de
+confirmación con Pedidos.**
 [Contratos y acuerdos pendientes](docs/integraciones.md).
 
 ## Documentación

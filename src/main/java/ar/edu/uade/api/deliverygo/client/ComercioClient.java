@@ -1,7 +1,5 @@
 package ar.edu.uade.api.deliverygo.client;
-
 import ar.edu.uade.api.deliverygo.dto.ComercioDTO;
-
 import java.util.Optional;
 
 //Adapter al módulo Comercios (DM-11)
