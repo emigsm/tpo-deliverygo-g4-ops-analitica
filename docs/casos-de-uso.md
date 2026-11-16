@@ -138,7 +138,7 @@ y las secuencias existentes o pendientes en [diagramas](diagramas/README.md).
 - **Alternativa prevista:** sin entregas, cantidad 0 y promedio null. Su persistencia requiere aclaración por el NOT NULL actual de ENT-02.
 - **Resultado esperado:** ambas métricas agregadas al tablero.
 - **Referencias:** fila CU-10; RN-03/06/09, SEC-10 pendiente, DM-14/15/16/18; eventos de Logística vía CU-06, sin nueva INT saliente.
-- **Estado:** evolución pendiente; no existen estos tipos de métricas ni su cálculo.
+- **Estado:** mplementado en SRV-08 y API-04.
 
 ## Contratos OpenAPI
 

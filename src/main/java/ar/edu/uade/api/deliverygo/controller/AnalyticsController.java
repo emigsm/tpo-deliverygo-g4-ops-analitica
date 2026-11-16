@@ -79,7 +79,7 @@ public class AnalyticsController {
     }
 
     @Operation(summary = "Consultar tablero de analítica",
-            description = "CU-05 y CU-09, RN-03 y RN-06: obtiene cantidad de reseñas, promedio de calificación, pedidos entregados " +
+            description = "CU-05 y CU-09, y CU_10, RN-03 y RN-06: obtiene cantidad de reseñas, promedio de calificación, pedidos entregados " +
                     "y cantidad de pagos aprobados y rechazados a partir de eventos guardados. Sin eventos de pagos devuelve ambos contadores en cero. " +
                     "Cada fecha omitida toma la fecha actual del servidor; ambos extremos son inclusivos. " +
                     "Sin reseñas, el promedio es null y no se persiste. INT-05 es un contrato propuesto pendiente " +

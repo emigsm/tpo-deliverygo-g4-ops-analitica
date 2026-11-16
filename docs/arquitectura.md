@@ -112,7 +112,7 @@ pero no existen en el código actual.
 | TPO relaciona CU-05 con REP-03 e incluye referencias residuales a INT-01 / DTO-05 | El código consulta reseñas por fecha e INT-05 para agregados. REP-03 sigue siendo consulta por objetivo; no se reasigna su identificador. |
 | ENT-02 descrita como snapshot “no se recalcula on-demand” | API-04 calcula y actualiza snapshots bajo demanda; DM-16 de evolución contempla recálculo por período. |
 | Documento de endpoints enumera fuentes PAGOS/LOGISTICA, métricas futuras y API-05/06 | No existen en el Java actual; son evolución pendiente. |
-| CU-10 sin entregas: promedio null | ENT-02.valor es NOT NULL; falta acordar cómo persistir o representar ese caso. |
+| CU-10 sin entregas: promedio null | ENT-02.valor es NOT NULL; sin tiempos no se persiste, se devuelve null (igual que PROMEDIO_CALIFICACION en CU-05) |
 | DTOs y diseño usan Reseña / cantidadReseñas | Java y JSON usan Resena / cantidadResenas; conservar nombres reales en contratos. |
 | DTO-01 describe campos obligatorios en documento de endpoints | No hay restricciones Bean Validation en el DTO. Puntuación se valida en servicio; no se promete validación completa de campos nulos. |
 | OpenAPI generado para 400 de API-04 | Corregido en Task 05: oneOf distingue ErrorResponseDTO del error de binding de Spring Boot; ver guía API. |
@@ -122,6 +122,6 @@ pero no existen en el código actual.
 
 - Contratos reales, URLs, autenticación, timeouts y errores de INT-01 a INT-05; INT-03/04/05 requieren acuerdo explícito.
 - Autenticación JWT y autorización por actor: actores funcionales no implican controles de rol ya implementados.
-- Entrega y deduplicación de eventos, zona horaria y caso de promedio null de CU-10.
+- Entrega y deduplicación de eventos, zona horaria.
 - SEC-06 a SEC-10 y actualización de diagramas históricos para reflejar diferencias aprobadas posteriormente.
 - Resolución de discrepancias funcionales con el equipo/docente. Las anotaciones OpenAPI y el contrato de errores fueron corregidos en Task 05; ver documentación API.
