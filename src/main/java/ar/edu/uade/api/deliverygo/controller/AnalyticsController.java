@@ -1,5 +1,6 @@
 package ar.edu.uade.api.deliverygo.controller;
-
+import java.time.Instant;
+import java.util.Map;
 import ar.edu.uade.api.deliverygo.controller.OpinionesController.SpringBootErrorSchema;
 import ar.edu.uade.api.deliverygo.dto.*;
 import ar.edu.uade.api.deliverygo.services.AnalyticsService;
@@ -94,6 +95,7 @@ public class AnalyticsController {
             @ApiResponse(responseCode = "503", description = "Pedidos no disponible o respuesta inválida, sin snapshot válido del período exacto",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
+
     @GetMapping("/analytics/dashboard")
     public ResponseEntity<DashboardResponse> obtenerTablero(
             @Parameter(description = "Inicio inclusivo, ISO-8601 (yyyy-MM-dd). Si se omite, fecha actual del servidor",
@@ -105,6 +107,17 @@ public class AnalyticsController {
         return ResponseEntity.ok(analyticsService.generarTablero(desde, hasta));
     }
 
+
+    @Operation(summary = "Health check del módulo",
+            description = "Devuelve 200 con status UP si el módulo está levantado.")
+    @ApiResponse(responseCode = "200", description = "Módulo operativo")
+    @GetMapping("/status")
+    public ResponseEntity<Map<String, String>> status() {
+        return ResponseEntity.ok(Map.of(
+                "status", "UP",
+                "module", "deliverygo-ops-analitica",
+                "timestamp", Instant.now().toString()));
+    }
 
 }
 

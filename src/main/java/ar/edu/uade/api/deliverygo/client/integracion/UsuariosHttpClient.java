@@ -51,9 +51,9 @@ public class UsuariosHttpClient implements UsuariosClient {
             if (e.getStatusCode().value() == 404) {
                 return Optional.empty();
             }
-            throw new ExternalServiceUnavailableException("Usuarios respondió " + e.getStatusCode().value(), e);
+            throw new ExternalServiceUnavailableException("Usuarios respondió " );
         } catch (ResourceAccessException e) {
-            throw new ExternalServiceUnavailableException("Usuarios no está disponible", e);
+            throw new ExternalServiceUnavailableException("Usuarios no está disponible");
         }
     }
 
