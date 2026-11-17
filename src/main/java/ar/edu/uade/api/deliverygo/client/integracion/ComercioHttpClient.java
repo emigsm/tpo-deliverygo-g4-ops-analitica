@@ -48,9 +48,9 @@ public class ComercioHttpClient implements ComercioClient {
             if (e.getStatusCode().value() == 404) {
                 return Optional.empty();
             }
-            throw new ExternalServiceUnavailableException("Comercios respondió " + e.getStatusCode().value(), e);
+            throw new ExternalServiceUnavailableException("Comercios respondió ");
         } catch (ResourceAccessException e) {
-            throw new ExternalServiceUnavailableException("Comercios no está disponible", e);
+            throw new ExternalServiceUnavailableException("Comercios no está disponible");
         }
     }
 
