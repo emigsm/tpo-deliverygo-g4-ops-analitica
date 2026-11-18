@@ -37,6 +37,7 @@ para aislar integraciones. [Arquitectura y decisiones](docs/arquitectura.md).
 | API-04 | `GET /api/v1/analytics/dashboard` | CU-05, CU-08, CU-09 |
 | API-05 | `POST /api/v1/analytics/events` | CU-06 |
 | API-06 | `GET /api/v1/analytics/metrics` | CU-07 |
+| — | `GET /api/v1/status` | Health check |
 
 [Swagger UI](http://localhost:8089/swagger-ui.html).
 [Contratos, ejemplos y exportación OpenAPI](docs/api/README.md).
@@ -55,13 +56,61 @@ mvn spring-boot:run
 
 La configuración local incluida usa puerto **8089**, H2 en memoria y clientes mock;
 no requiere configurar URLs externas. La identidad temporal de API-01 se envía en
-`X-Usuario-Id`. Spring Security está autoconfigurado: las APIs requieren credenciales
-(usuario `user`, contraseña generada en el log salvo configuración explícita); JWT
-sigue pendiente. [Configuración y datos de ejemplo](docs/api/README.md#ejecucion-local).
+`X-Usuario-Id`. Las APIs usan HTTP Basic con credenciales fijas de demo
+(usuario `user`, contraseña `deliverygo`; configurables con `OPS_USER` y `OPS_PASSWORD`),
+sin CSRF ni sesión; `GET /api/v1/status` es público. JWT sigue pendiente.
+[Configuración y datos de ejemplo](docs/api/README.md#ejecucion-local).
 
 - API: <http://localhost:8089/api/v1>
 - OpenAPI: <http://localhost:8089/v3/api-docs.yaml>
 - H2: <http://localhost:8089/h2-console>
+
+## Pruebas de integración
+
+Al levantar el módulo (`mvn spring-boot:run`) los clientes de Usuarios, Comercios, Pedidos
+y Logística son mocks y se precargan dos reseñas demo (comercio 10 y repartidor 20, del
+usuario 101, sin colisión con los pedidos mock). Esas reseñas cuentan en el tablero del
+día de arranque. Credenciales: `user` / `deliverygo`.
+
+| Dato mock | Valor |
+| --- | --- |
+| Usuario activo | 100 |
+| Comercio activo | 10 |
+| Repartidor activo | 20 |
+| Pedido 1 | usuario 100, comercio 10, ENTREGADO |
+| Pedido 2 | usuario 100, repartidor 20, ENTREGADO |
+| Pedido 3 | usuario 100, comercio 10, EN_CAMINO (reseña: 422) |
+
+```sh
+# Health check (público)
+curl -i http://localhost:8089/api/v1/status
+
+# Rating con la reseña precargada: cantidadResenas 1, promedio 4.00
+curl -i -u user:deliverygo http://localhost:8089/api/v1/merchants/10/rating
+
+# Crear reseña de comercio: 201 (repetirla devuelve 409)
+curl -i -u user:deliverygo -X POST http://localhost:8089/api/v1/reviews \
+  -H "Content-Type: application/json" -H "X-Usuario-Id: 100" \
+  -d '{"pedidoId":1,"tipoObjetivo":"COMERCIO","puntuacion":5,"comentario":"Buena atención"}'
+
+# Rating actualizado: cantidadResenas 2, promedio 4.50
+curl -i -u user:deliverygo http://localhost:8089/api/v1/merchants/10/rating
+
+# Reseña de repartidor: mismo POST con pedidoId 2 y tipoObjetivo REPARTIDOR
+# Tablero del día
+curl -i -u user:deliverygo http://localhost:8089/api/v1/analytics/dashboard
+```
+
+En PowerShell usar `curl.exe` y escapar las comillas del JSON
+(`-d "{\"pedidoId\":1,\"tipoObjetivo\":\"COMERCIO\",\"puntuacion\":5}"`).
+
+Perfil `integracion`: Comercios y Usuarios por HTTP; Pedidos y Logística siguen con mock
+y no se precargan reseñas. Las URLs y la API key son obligatorias:
+
+```sh
+mvn spring-boot:run -Dspring-boot.run.profiles=integracion \
+  -Dspring-boot.run.arguments="--integraciones.comercios.url=<URL> --integraciones.usuarios.url=<URL> --integraciones.usuarios.api-key=<KEY>"
+```
 
 ## Integraciones externas
 
