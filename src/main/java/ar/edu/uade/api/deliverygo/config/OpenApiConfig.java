@@ -11,6 +11,19 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 
+/**
+ * Configura el documento OpenAPI que expone springdoc (Swagger UI y /v3/api-docs).
+ *
+ * Tiene dos beans:
+ * <ul>
+ *   <li>{@code deliveryGoOpenAPI}: título, versión, descripción general y esquema de seguridad HTTP Basic.</li>
+ *   <li>{@code implementedExamples}: un {@code OpenApiCustomizer} que agrega a cada operación el header
+ *       {@code X-Correlation-Id}, la respuesta 401 (y 403 en reviews) y ejemplos JSON.</li>
+ * </ul>
+ *
+ * Observación: la descripción dice "sesión de formulario y CSRF en POST", pero {@code SecurityConfig} usa HTTP Basic,
+ * sin sesión y sin CSRF. La documentación de OpenAPI quedó desalineada del código; el código es la fuente.
+ */
 @Configuration
 public class OpenApiConfig {
     @Bean
@@ -27,6 +40,11 @@ public class OpenApiConfig {
                 .addSecurityItem(new SecurityRequirement().addList("basicAuth"));
     }
 
+    /**
+     * Agrega a la documentación los headers, las respuestas comunes y los ejemplos de cada operación.
+     *
+     * Los ejemplos están escritos a mano como JSON. Pueden desalinearse del comportamiento real, porque no se generan desde el código.
+     */
     @Bean
     public OpenApiCustomizer implementedExamples() {
         return api -> {

@@ -1,5 +1,11 @@
 package ar.edu.uade.api.deliverygo.dto;
 
+/**
+ * Pedido recibido de Pedidos (INT-01, DTO-05).
+ *
+ * {@code ReviewService} usa {@code estado} (debe ser ENTREGADO), {@code usuarioId} (debe ser el autenticado) y
+ * {@code comercioId} o {@code repartidorId} según el tipo de reseña. El objetivo sale de acá, no del request.
+ */
 // DTO-05 (entrada, INT-01).
 public class PedidoDTO {
 

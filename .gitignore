@@ -32,3 +32,4 @@ target/
 out/
 docs/local
 docs/contratos-equipos
+/docs/guia-del-codigo.md

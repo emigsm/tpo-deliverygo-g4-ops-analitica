@@ -13,6 +13,14 @@ import org.springframework.web.client.RestClientResponseException;
 import java.time.Duration;
 import java.util.Optional;
 
+/**
+ * Cliente HTTP a Usuarios (INT-02), activo solo con el perfil {@code integracion}.
+ *
+ * Igual que {@code ComercioHttpClient} en timeouts y mapeo de errores, con una diferencia: envía la clave
+ * en el header {@code X-Api-Key}, configurada con la propiedad {@code integraciones.usuarios.api-key}.
+ *
+ * Observación: esa propiedad no está en {@code application.properties}. Debe venir de otro archivo o variable de entorno.
+ */
 // Adapter HTTP a Usuarios (INT-02). Traduce estado (ACTIVO/INACTIVO) a activo (DM-11).
 @Component
 @Profile("integracion")

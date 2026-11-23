@@ -3,6 +3,16 @@ import java.time.LocalDateTime;
 import java.util.List;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+/**
+ * Respuesta del tablero de analítica para un período (DTO-04, API-04 según el TPO).
+ *
+ * Campos: {@code generadoEn} (momento de generación de la respuesta), {@code metricas} (lista de DTO-10)
+ * y {@code parcial}.
+ *
+ * Decisión (DM-09): {@code parcial = true} indica que se usó un snapshot guardado del período exacto
+ * porque Pedidos no respondió o respondió datos inválidos. El tablero sigue disponible con degradación
+ * explícita en lugar de fallar por completo.
+ */
 // DTO-04 (salida, API-04)
 @Schema(description = "Resultado del tablero de analítica para un período")
 public class DashboardResponse {

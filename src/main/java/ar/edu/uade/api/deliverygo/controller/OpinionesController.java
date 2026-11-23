@@ -25,11 +25,24 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 
+/**
+ * Controller de reseñas y calificaciones (API-01, API-02, API-03), bajo {@code /api/v1}.
+ *
+ * Solo traduce HTTP a llamadas a {@link ar.edu.uade.api.deliverygo.services.ReviewService}. Las reglas de negocio
+ * (RN-01 a RN-08) están en el servicio, no en el controller.
+ *
+ * Identidad temporal: el usuario llega en el header {@code X-Usuario-Id}, no en el body. Es un parche provisorio
+ * hasta integrar JWT (ver TODO en {@code crearResena}).
+ */
 @RestController
 @RequestMapping(value = "/api/v1", produces = "application/json")
 @Tag(name = "Opiniones", description = "Creación de reseñas y consulta de rating promedio")
 public class OpinionesController {
 
+    /**
+     * Esquema usado solo por OpenAPI (anotaciones {@code @Schema}) para documentar el error de binding de Spring Boot.
+     * No lo instancia ningún endpoint. {@code AnalyticsController} también lo importa; ver guía de observaciones.
+     */
     // Documentation-only schema: Spring Boot /error, not a controller response DTO.
     @Schema(name = "SpringBootError", description = "Respuesta JSON de Spring Boot para errores de binding; no es ErrorResponseDTO",
             requiredProperties = {"timestamp", "status", "error", "path"})
@@ -42,6 +55,12 @@ public OpinionesController(ReviewService reviewService) {
     this.reviewService = reviewService;
 }
 
+    /**
+     * Crea una reseña (API-01, CU-01 y CU-02). Responde 201 con la reseña creada (DTO-02).
+     *
+     * @param resenaRequest datos de la reseña (DTO-01)
+     * @param usuarioIdAutenticado usuario que realiza la operación, leído del header {@code X-Usuario-Id}
+     */
     // API-01 (CU-01, CU-02)
     // TODO: reemplazar por el usuarioId que resuelva SecurityConfig
     // Temporalmente se recibe usuarioId por header X-Usuario-Id
@@ -82,6 +101,9 @@ public OpinionesController(ReviewService reviewService) {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    /**
+     * Calificación promedio de un comercio (API-02, CU-03). Responde 200 aun sin reseñas (DM-12).
+     */
     // API-02 (CU-03)
     @Operation(summary = "Calificación promedio de un comercio",
             description = "CU-03: consulta la calificación promedio y la cantidad de reseñas del comercio.")
@@ -97,6 +119,9 @@ public OpinionesController(ReviewService reviewService) {
 
     }
 
+    /**
+     * Calificación promedio de un repartidor (API-03, CU-04). Responde 200 aun sin reseñas (DM-12).
+     */
     // API-03 (CU-04)
     @Operation(summary = "Calificación promedio de un repartidor",
             description = "CU-04: consulta la calificación promedio y la cantidad de reseñas del repartidor.")

@@ -21,6 +21,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * Controller del módulo de analítica (/api/v1).
+ *
+ * Expone: registro de eventos (API-05, POST), métricas guardadas por período (API-06, GET),
+ * tablero (CU-05, GET) y health check (GET /status).
+ *
+ * Decisión: no lleva {@code X-Usuario-Id}. El POST lo llaman otros módulos, y el tablero y las métricas no son por usuario.
+ * Toda la lógica está en {@code AnalyticsService}; el controller solo traduce HTTP.
+ */
 @RestController
 @RequestMapping(value = "/api/v1", produces = "application/json")
 public class AnalyticsController {
@@ -34,6 +43,7 @@ public class AnalyticsController {
 
 
     // API-05 / CU-06 / SRV-04 / DTO-11 -> DTO-12.
+    // Responde 201 con el evento creado (DTO-12).
 // Lo invocan otros módulos del ecosistema, no el Portal: no lleva X-Usuario-Id.
     @Operation(summary = "Registrar evento analítico",
             description = "CU-06 y RN-09: persiste un evento operativo emitido por otro módulo " +
@@ -57,6 +67,7 @@ public class AnalyticsController {
     }
 
     // API-06 / CU-07 / SRV-05 / DTO-10.
+    // Solo lee la tabla metricas; por eso no depende de Pedidos y responde aunque ese módulo esté caído.
     @Operation(summary = "Consultar métricas por período",
             description = "CU-07: lee snapshots previamente calculados y guardados. " +
                     "Devuelve los períodos completamente contenidos entre ambas fechas, con límites inclusivos. " +
@@ -79,6 +90,7 @@ public class AnalyticsController {
         return ResponseEntity.ok(analyticsService.consultarMetricasPorPeriodo(periodoDesde, periodoHasta));
     }
 
+    // Endpoint del tablero (CU-05). Las fechas omitidas toman la fecha del servidor; la lógica está en AnalyticsService.generarTablero.
     @Operation(summary = "Consultar tablero de analítica",
             description = "CU-05 y CU-09, y CU_10, RN-03 y RN-06: obtiene cantidad de reseñas, promedio de calificación, pedidos entregados " +
                     "y cantidad de pagos aprobados y rechazados a partir de eventos guardados. Sin eventos de pagos devuelve ambos contadores en cero. " +
@@ -108,6 +120,7 @@ public class AnalyticsController {
     }
 
 
+    // Health check: responde si el proceso está levantado. No consulta la BD ni otros módulos.
     @Operation(summary = "Health check del módulo",
             description = "Devuelve 200 con status UP si el módulo está levantado.")
     @ApiResponse(responseCode = "200", description = "Módulo operativo")

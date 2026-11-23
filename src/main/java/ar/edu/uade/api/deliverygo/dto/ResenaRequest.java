@@ -3,6 +3,16 @@ package ar.edu.uade.api.deliverygo.dto;
 import ar.edu.uade.api.deliverygo.model.TipoObjetivo;
 import io.swagger.v3.oas.annotations.media.Schema;
 
+/**
+ * DTO-01 de entrada (API-01): datos para registrar una reseña.
+ *
+ * Decisión DM-13: el cliente no envía {@code usuarioId} ni {@code objetivoId}. El usuario sale de la identidad
+ * autenticada y el objetivo se deriva del pedido en el servicio. Así nadie puede calificar un comercio o repartidor
+ * distinto del que atendió el pedido.
+ *
+ * Observación: el comentario original de DM-13 menciona JWT; el controller toma la identidad del header
+ * {@code X-Usuario-Id} (ver {@code OpinionesController}).
+ */
 // DTO-01 (entrada, API-01)
 // DM-13: usuarioId sale de JWT, objetivoId de PedidoDTO segun tipoObjetivo
 @Schema(description = "Datos de entrada para registrar una reseña. No declara restricciones Bean Validation; la puntuación se valida en el servicio.")

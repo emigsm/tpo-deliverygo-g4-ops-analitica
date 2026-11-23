@@ -3,6 +3,12 @@ import ar.edu.uade.api.deliverygo.model.TipoObjetivo;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 
+/**
+ * DTO-03 de salida (API-02 y API-03): promedio de calificación de un comercio o repartidor.
+ *
+ * Decisión: sin reseñas, {@code promedio} es {@code null} y {@code cantidadResenas} es 0. Se usa {@code null}
+ * para distinguir "sin datos" de "calificación cero", que es imposible porque la puntuación mínima es 1.
+ */
 // DTO-03 (salida, API-02/API-03)
 @Schema(description = "Calificación agregada de un comercio o repartidor")
 public class RatingResponse {

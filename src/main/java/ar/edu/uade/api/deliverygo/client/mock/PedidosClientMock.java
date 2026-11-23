@@ -11,6 +11,18 @@ import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Implementación de prueba de {@link ar.edu.uade.api.deliverygo.client.PedidosClient}.
+ *
+ * Datos fijos: pedido 1 (comercio 10, ENTREGADO), pedido 2 (repartidor 20, ENTREGADO) y pedido 3
+ * (comercio 10, EN_CAMINO). Permite probar la validación de reseñas sin el módulo real.
+ *
+ * Estadísticas simuladas (INT-05 propuesto): {@code app.pedidos.mock.stats.disponible} y
+ * {@code app.pedidos.mock.stats.cantidad-entregados} controlan la respuesta. Con {@code disponible=false} se puede
+ * simular la indisponibilidad de Pedidos y el modo degradado (DM-09).
+ *
+ * Observación: los campos usan inyección por campo ({@code @Value} sobre el atributo). Un constructor sería más testeable.
+ */
 //Mock de Pedidos (DM-11)
 //@Component para que Spring los inyecte como implementación de las interfaces
 @Component

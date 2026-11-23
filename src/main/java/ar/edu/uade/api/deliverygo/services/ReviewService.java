@@ -30,6 +30,15 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 
+/**
+ * Servicio de reseñas (SRV-01, SRV-02; CU-01 a CU-04).
+ *
+ * Orquesta las validaciones de negocio antes de persistir: pedido entregado y propio (INT-01),
+ * usuario y objetivo activos (INT-02, INT-03, INT-04), reseña no duplicada (RN-02) y puntuación 1 a 5 (RN-04).
+ *
+ * Depende de interfaces ({@code client.*} y {@code repository.*}), no de implementaciones. Por eso los
+ * mocks y los clientes HTTP se intercambian por perfil sin tocar esta clase.
+ */
 //SRV-01, SRV-02 (CU-01 a CU-04)
 @Service
 public class ReviewService {
@@ -50,6 +59,22 @@ public class ReviewService {
         this.logisticaClient = logisticaClient;
     }
 
+    /**
+     * Crea una reseña (SRV-01, CU-01 y CU-02).
+     *
+     * {@code @Transactional}: la verificación de duplicado y el {@code save} ocurren en la misma transacción.
+     * Las validaciones de formato van primero (baratas, sin llamadas externas). Las llamadas a otros módulos van después.
+     *
+     * Decisión: {@code usuarioId} llega como argumento desde la identidad autenticada, nunca desde el body (DM-13).
+     *
+     * @param resenaRequest datos de la reseña (DTO-01)
+     * @param usuarioIdAutenticado usuario autenticado que crea la reseña
+     * @return reseña persistida (DTO-02)
+     * @throws OrderNotDeliveredException si el pedido no existe o no está ENTREGADO
+     * @throws OrderNotOwnedException si el pedido es de otro usuario
+     * @throws DuplicateReviewException si ya existe una reseña para usuario, pedido y tipo (RN-02)
+     * @throws InvalidRatingException si la puntuación no está entre 1 y 5 (RN-04)
+     */
     // SRV-01 (CU-01, CU-02)
     @Transactional
     public ResenaResponse crearResena(ResenaRequest resenaRequest, Long usuarioIdAutenticado) {
@@ -57,6 +82,7 @@ public class ReviewService {
         validarTipoObjetivo(resenaRequest.getTipoObjetivo());
         validarComentario(resenaRequest.getComentario());
 
+        // Observación: un pedido inexistente lanza OrderNotDeliveredException. El tipo de error es discutible; ver guía de observaciones.
         //INT-01, RN-01 (entregado) y RN-07 (dueño); objetivoId sale del PedidoDTO
         PedidoDTO pedido = pedidosClient.obtenerPedido(resenaRequest.getPedidoId()).orElseThrow(() -> new OrderNotDeliveredException("El pedido " + resenaRequest.getPedidoId() + " no existe"));
 
@@ -64,6 +90,7 @@ public class ReviewService {
             throw new OrderNotDeliveredException("El pedido " + pedido.getId() + " no fue entregado (estado actual: " + pedido.getEstado() + ")");
         }
 
+        // Observación: si pedido.getUsuarioId() fuera null, esta comparación lanzaría NullPointerException.
         if (!pedido.getUsuarioId().equals(usuarioIdAutenticado)) {
             throw new OrderNotOwnedException("El pedido " + pedido.getId() + " no pertenece al usuario autenticado");
         }
@@ -74,6 +101,7 @@ public class ReviewService {
         validarUsuario(usuarioIdAutenticado);
         validarObjetivo(resenaRequest.getTipoObjetivo(), objetivoId);
 
+        // Decisión: la puntuación se valida después del control de duplicado. Una reseña duplicada con puntuación inválida responde DuplicateReview.
         // RN-02 (sin duplicado) y RN-04 (puntuación 1-5)
         if (resenaRepository.existsByUsuarioIdAndPedidoIdAndTipoObjetivo(usuarioIdAutenticado, resenaRequest.getPedidoId(), resenaRequest.getTipoObjetivo())) {
             throw new DuplicateReviewException("Ya existe una reseña del usuario " + usuarioIdAutenticado + " para el pedido " + resenaRequest.getPedidoId() + " y tipo " + resenaRequest.getTipoObjetivo());
@@ -88,6 +116,7 @@ public class ReviewService {
         return ResenaMapper.toResponse(resena);
     }
 
+    // Decisión: el objetivo se deriva del pedido (no del body). Así una reseña solo puede apuntar al comercio o repartidor que atendió ese pedido.
     //Obtener ID según el tipoObjetivo
     private Long resolverObjetivoId(TipoObjetivo tipoObjetivo, PedidoDTO pedido) {
         return switch (tipoObjetivo) {
@@ -105,6 +134,7 @@ public class ReviewService {
         }
     }
 
+    // Valida que el objetivo exista y esté activo. Según el tipo, consulta Comercios (INT-03) o Logística (INT-04).
     private void validarObjetivo(TipoObjetivo tipoObjetivo, Long objetivoId) {
         if (objetivoId == null) {
             throw new ExternalEntityInvalidException("El pedido no tiene un objetivo de tipo " + tipoObjetivo);
@@ -153,10 +183,19 @@ public class ReviewService {
         }
     }
 
+    /**
+     * Calcula el promedio de calificación de un comercio o repartidor (SRV-02; CU-03 y CU-04).
+     *
+     * {@code readOnly = true}: el método no escribe, así que la BD puede optimizar la transacción.
+     *
+     * @return promedio con 2 decimales (HALF_UP) y cantidad de reseñas. Sin reseñas, promedio {@code null} y cantidad 0 (DM-12).
+     */
     // SRV-02 (CU-03, CU-04)
     @Transactional(readOnly = true)
     public RatingResponse obtenerPromedio(TipoObjetivo tipoObjetivo, Long objetivoId) {
 
+        // Observación: carga todas las reseñas en memoria. Con volúmenes grandes, una consulta AVG/COUNT en el repositorio
+        // sería más eficiente. Es una alternativa a evaluar, no un defecto confirmado.
         List<Resena> resenas = resenaRepository.findByObjetivoIdAndTipoObjetivo(objetivoId, tipoObjetivo);
 
         if (resenas.isEmpty()) {

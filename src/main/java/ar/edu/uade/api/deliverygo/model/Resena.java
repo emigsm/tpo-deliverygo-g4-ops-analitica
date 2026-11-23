@@ -3,6 +3,19 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.Check;
 import java.time.LocalDateTime;
 
+/**
+ * ENT-01 - Entidad {@code resenas}: calificación de un usuario sobre un pedido entregado.
+ * <p>
+ * Reglas aplicadas en distintas capas (defensa en profundidad):
+ * <ul>
+ *   <li>RN-02 - Una reseña por usuario, pedido y tipo de objetivo: {@code uk_resena_usuario_pedido_tipo}
+ *       en BD, y control previo en {@code ReviewService}.</li>
+ *   <li>RN-04 - Puntuación entre 1 y 5: {@code @Check} en BD, y validación en {@code ReviewService}.</li>
+ *   <li>RN-05 - Inmutabilidad: {@code updatable = false} en cada campo. El controller no expone PUT ni DELETE.</li>
+ * </ul>
+ * Observación: {@code updatable = false} solo impide que Hibernate emita UPDATE para estos campos;
+ * no protege contra cambios hechos directamente en la BD.
+ */
 // RN-05: Una reseña es inmutable una vez creada. No hay endpoints PUT/DELETE
 @Entity
 @Table(name = "resenas", uniqueConstraints = @UniqueConstraint(name = "uk_resena_usuario_pedido_tipo", columnNames = {"usuario_id", "pedido_id", "tipo_objetivo"}))

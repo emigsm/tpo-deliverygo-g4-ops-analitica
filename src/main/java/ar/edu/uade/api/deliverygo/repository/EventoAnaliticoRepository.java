@@ -7,6 +7,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Acceso a ENT-03 ({@code eventos_analiticos}).
+ * <p>
+ * Hereda {@code save}, {@code findById} y {@code findAll} de {@link JpaRepository}; no hay
+ * implementación escrita a mano. Spring Data genera el SQL en el arranque a partir del nombre
+ * del método (derived query). Ejemplo: {@code findByTipoEventoAndFechaEventoBetween} se traduce a
+ * {@code WHERE tipo_evento = ? AND fecha_evento BETWEEN ? AND ?}.
+ * <p>
+ * Usado por {@code AnalyticsService} en los análisis de CU-08, CU-09 y CU-10.
+ */
 public interface EventoAnaliticoRepository extends JpaRepository<EventoAnalitico, Long> {
     // REP-06 (CU-06, RN-09): persistir el evento -> es el save() que ya trae JpaRepository
 

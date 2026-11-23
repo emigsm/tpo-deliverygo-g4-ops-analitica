@@ -4,6 +4,9 @@ import ar.edu.uade.api.deliverygo.dto.UsuarioDTO;
 
 import java.util.Optional;
 
+/**
+ * Puerto (adapter, DM-11) hacia el módulo Usuarios (INT-02).
+ */
 //Adapter a Usuarios (DM-11)
 public interface UsuariosClient {
 

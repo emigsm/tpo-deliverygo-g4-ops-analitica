@@ -8,6 +8,13 @@ import java.time.LocalDate;
 import java.util.Optional;
 import java.util.List;
 
+/**
+ * Acceso a ENT-02 ({@code metricas}): snapshots ya calculados del tablero.
+ * <p>
+ * Los nombres de los métodos derivados describen la consulta, y Spring Data la convierte en SQL
+ * sin escribir JPQL. El guardado con upsert (RN-06) usa {@code findByFuenteAndTipoMetricaAndPeriodoDesdeAndPeriodoHasta}
+ * desde {@code AnalyticsService}.
+ */
 public interface MetricaRepository extends JpaRepository<Metrica, Long> {
 
     // REP-08 (CU-07): snapshots completamente contenidos en el rango, límites inclusivos.
@@ -15,6 +22,7 @@ public interface MetricaRepository extends JpaRepository<Metrica, Long> {
             LocalDate periodoDesde, LocalDate periodoHasta);
 
     // REP-04: Persistir el snapshot (Default)
+    // Nota: el identificador REP-04 aparece también en la consulta siguiente; revisar contra el TPO.
 
     // REP-04: Último snapshot persistido para una fuente/tipoMetrica dados. (Puede no haber)
     Optional<Metrica> findFirstByFuenteAndTipoMetricaOrderByFechaCalculoDesc(FuenteMetrica fuente, TipoMetrica tipoMetrica);

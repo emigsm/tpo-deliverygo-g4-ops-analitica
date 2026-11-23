@@ -3,6 +3,9 @@ package ar.edu.uade.api.deliverygo.mapper;
 import ar.edu.uade.api.deliverygo.dto.MetricaResumen;
 import ar.edu.uade.api.deliverygo.model.Metrica;
 
+/**
+ * Mapper de salida: ENT-02 a DTO-10. Omite {@code id} y {@code fechaCalculo} a propósito: el tablero no los expone.
+ */
 // Convierte Metrica (ENT-02) al resumen de salida del tablero (DTO-10).
 public final class MetricaMapper {
 

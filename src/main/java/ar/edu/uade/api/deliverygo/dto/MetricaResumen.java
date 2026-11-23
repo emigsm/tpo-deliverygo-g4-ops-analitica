@@ -7,6 +7,12 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+/**
+ * DTO-10 de salida: una métrica del tablero, sin {@code id} ni {@code fechaCalculo}, que son detalles internos de ENT-02.
+ *
+ * Decisión: {@code valor} puede ser {@code null} solo para PROMEDIO_CALIFICACION sin reseñas. Ese promedio
+ * no se persiste, porque la columna {@code valor} de {@code Metrica} es NOT NULL.
+ */
 // DTO-10 (salida, API-04) Representa una métrica sin ID ni fechaCalculo
 @Schema(description = "Resumen de una métrica del tablero")
 public class MetricaResumen {

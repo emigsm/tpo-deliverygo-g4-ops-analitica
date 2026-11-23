@@ -8,6 +8,11 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Implementación de prueba de {@link ar.edu.uade.api.deliverygo.client.ComercioClient}, activa fuera del perfil {@code integracion}.
+ *
+ * Datos fijos: el comercio {@code 10} existe y está activo. Cualquier otro id devuelve vacío.
+ */
 //Mock de Comercio (DM-11)
 //@Component para que Spring los inyecte como implementación de las interfaces
 @Component

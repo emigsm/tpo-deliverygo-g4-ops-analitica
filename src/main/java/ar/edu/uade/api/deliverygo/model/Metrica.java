@@ -5,6 +5,22 @@ import java.time.LocalDateTime;
 import java.time.LocalDate;
 
 // Métrica: resultado agregado ya calculado del tablero.
+/**
+ * Métrica - Resultado agregado ya calculado para el tablero (ENT-02, CU-05).
+ * <p>
+ * Cada fila representa un valor de {@code tipoMetrica} para una {@code fuente} y un período
+ * {@code [periodoDesde, periodoHasta]}. El resultado se persiste como "foto" del cálculo, en lugar
+ * de recalcularlo en cada consulta del tablero.
+ * <p>
+ * Decisiones:
+ * <ul>
+ *   <li>{@code uk_metrica_fuente_tipo_periodo} (RN-06) impide duplicar la misma métrica para el mismo período.</li>
+ *   <li>Solo {@code valor} y {@code fechaCalculo} tienen setter: al recalcular el mismo período,
+ *       {@code AnalyticsService.guardarSnapshot} modifica la entidad existente (dirty checking)
+ *       en lugar de borrar e insertar otra fila.</li>
+ *   <li>{@code BigDecimal} con precisión (19,4) evita errores de redondeo de los {@code double}.</li>
+ * </ul>
+ */
 @Entity
 @Table(name = "metricas", uniqueConstraints = @UniqueConstraint(name = "uk_metrica_fuente_tipo_periodo", columnNames = {"fuente", "tipo_metrica", "periodo_desde", "periodo_hasta"}))
 public class Metrica {

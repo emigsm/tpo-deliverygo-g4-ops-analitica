@@ -6,6 +6,14 @@ import ar.edu.uade.api.deliverygo.dto.PedidoDTO;
 import java.time.LocalDate;
 import java.util.Optional;
 
+/**
+ * Puerto (adapter, DM-11) hacia el módulo Pedidos.
+ *
+ * {@code obtenerPedido} (INT-01) lo usa {@code ReviewService} para validar existencia, dueño y estado ENTREGADO del pedido.
+ * {@code obtenerEstadisticas} (INT-05) está propuesto en el código y pendiente de confirmación con el equipo de Pedidos.
+ *
+ * Observación: solo existe {@code PedidosClientMock}, sin perfil. No hay cliente HTTP en el repositorio.
+ */
 // Adapter a el módulo Pedidos (DM-11)
 public interface PedidosClient {
     //GET /api/v1/orders/{id} (INT-01) Devuelve 200, 404 (Optional.empty()), 503

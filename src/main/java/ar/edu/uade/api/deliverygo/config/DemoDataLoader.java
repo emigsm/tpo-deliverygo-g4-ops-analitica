@@ -14,6 +14,13 @@ import org.springframework.context.annotation.Profile;
 // Usuario 101 y pedidos 901/902 no existen en PedidosClientMock: no colisionan con RN-02
 // al crear reseñas de los pedidos mock 1 y 2.
 // TODO: centralizar los ids mock en constantes compartidas si crecen los datos de prueba.
+/**
+ * Precarga dos reseñas de demostración al arrancar, solo fuera del perfil {@code integracion}.
+ *
+ * Decisión: las reseñas se guardan con {@code ResenaRepository} directamente, sin pasar por {@code ReviewService}.
+ * Los pedidos 901 y 902 no existen en {@code PedidosClientMock}, así que el servicio los rechazaría. Es un atajo
+ * intencional para demo, no un patrón a seguir en el código de producción.
+ */
 @Configuration
 @Profile("!integracion")
 public class DemoDataLoader {

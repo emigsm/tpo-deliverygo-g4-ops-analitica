@@ -24,6 +24,17 @@ import java.util.List;
 import java.util.Objects;
 
 
+/**
+ * Servicio de analítica: genera el tablero (CU-05), consulta snapshots (CU-07) y analiza eventos de pedidos,
+ * pagos y entregas (CU-08, CU-09, CU-10).
+ *
+ * Patrón central: cada análisis <em>calcula</em> a partir de datos de origen y <em>persiste</em> el resultado como
+ * {@link ar.edu.uade.api.deliverygo.model.Metrica} con upsert (RN-06, método {@code guardarSnapshot}). El tablero
+ * y las consultas leen esos snapshots, no recalculan.
+ *
+ * Pedidos (INT-05) se consume solo como estadística agregada, no como lista de pedidos. Si falla, se usa el
+ * snapshot del período exacto (DM-09).
+ */
 @Service
 public class AnalyticsService {
     private  final ResenaRepository resenaRepository;
@@ -39,6 +50,24 @@ public class AnalyticsService {
         this.pedidosClient = pedidosClient;
     }
 
+    /**
+     * Genera el tablero del período (CU-05). Si {@code desde} o {@code hasta} son null, toman la fecha actual del servidor.
+     *
+     * Pasos:
+     * <ol>
+     *   <li>Cuenta reseñas del período y guarda los snapshots de cantidad y promedio.</li>
+     *   <li>Pide a Pedidos la cantidad de entregados (INT-05). Si falla, usa el snapshot del período exacto y marca {@code parcial = true}.</li>
+     *   <li>Agrega cancelaciones (CU-08), pagos (CU-09) y entregas (CU-10).</li>
+     * </ol>
+     *
+     * Decisión: al ser {@code @Transactional}, si el paso 2 no tiene snapshot previo, la excepción revierte todos los
+     * snapshots escritos antes. El tablero es todo o nada.
+     *
+     * @param desde inicio del período (inclusive); null = hoy
+     * @param hasta fin del período (inclusive); null = hoy
+     * @throws InvalidPeriodException si {@code desde} es posterior a {@code hasta}
+     * @throws ExternalServiceUnavailableException si Pedidos no responde y no hay snapshot del período exacto
+     */
     @Transactional
     public DashboardResponse generarTablero(LocalDate desde, LocalDate hasta){
 
@@ -76,6 +105,7 @@ public class AnalyticsService {
 
         // INT-05 (propuesto): consumir exclusivamente estadísticas agregadas.
         try {
+            // Validación de la respuesta de INT-05: cualquier inconsistencia se trata como indisponibilidad.
             OrdersStatsDTO stats = pedidosClient.obtenerEstadisticas("ENTREGADO", desde, hasta);
             if (stats == null || stats.getCantidad() == null || stats.getCantidad() < 0
                     || !"ENTREGADO".equals(stats.getEstado())
@@ -85,6 +115,7 @@ public class AnalyticsService {
             metricas.add(guardarSnapshot(FuenteMetrica.PEDIDOS, TipoMetrica.PEDIDOS_ENTREGADOS,
                     desde, hasta, BigDecimal.valueOf(stats.getCantidad())));
         } catch (ExternalServiceUnavailableException e) {
+            // Degradación (DM-09): se usa el snapshot del período exacto si existe. Si no existe, el error se propaga.
             // RN-03/RN-06: únicamente aplica el snapshot de la misma fuente, tipo y período.
             Metrica snapshot = metricaRepository
                     .findByFuenteAndTipoMetricaAndPeriodoDesdeAndPeriodoHasta(
@@ -96,6 +127,8 @@ public class AnalyticsService {
             parcial = true;
         }
         
+        // Llamadas internas (analizarPedidosCancelados, analizarPagos, analizarEntregas): no pasan por el proxy de
+        // @Transactional, pero el método externo ya es transaccional y todas comparten esa transacción.
         //CU-08: pedidos cancelados en el tablero
         metricas.add(analizarPedidosCancelados(desde, hasta));
         
@@ -110,6 +143,13 @@ public class AnalyticsService {
 
     }
 
+    /**
+     * Consulta los snapshots cuyo período está completamente contenido en el rango pedido (CU-07, SRV-05).
+     *
+     * Solo lee la tabla {@code metricas}. No recalcula ni llama a otros módulos.
+     *
+     * @throws InvalidPeriodException si alguna fecha es null o el rango está invertido
+     */
     // SRV-05 / REP-08 (CU-07): solo lee snapshots; no recalcula ni consulta proveedores.
     @Transactional(readOnly = true)
     public List<MetricaResumen> consultarMetricasPorPeriodo(LocalDate periodoDesde, LocalDate periodoHasta) {
@@ -123,6 +163,11 @@ public class AnalyticsService {
                 .toList();
     }
 
+    /**
+     * Cuenta pagos aprobados y rechazados del período y guarda ambos snapshots (SRV-07, CU-09).
+     *
+     * Usa {@code LocalTime.MAX} como fin del día para incluir todo el día {@code periodoHasta}.
+     */
     // SRV-07 / REP-07 (CU-09): contar eventos de pagos y actualizar sus snapshots.
     @Transactional
     public List<MetricaResumen> analizarPagos(LocalDate periodoDesde, LocalDate periodoHasta) {
@@ -150,6 +195,12 @@ public class AnalyticsService {
         return metricas;
     }
 
+    /**
+     * Cuenta entregas completadas y calcula el tiempo promedio de entrega (CU-10).
+     *
+     * Decisión: solo se promedian los eventos que traen {@code valor} (minutos). Si ninguno lo trae, el tiempo promedio
+     * es {@code null} y no se persiste, porque {@code Metrica.valor} es NOT NULL.
+     */
     @Transactional
     public List<MetricaResumen> analizarEntregas(LocalDate periodoDesde, LocalDate periodoHasta) {
         LocalDate hoy = LocalDate.now();
@@ -187,6 +238,14 @@ public class AnalyticsService {
         return metricas;
     }
 
+        /**
+         * Registra un evento analítico recibido de otro módulo (SRV-04, CU-06).
+         *
+         * Valida RN-09 antes de guardar. Los eventos se guardan crudos; su análisis ocurre después, en los métodos de
+         * CU-08 a CU-10.
+         *
+         * @throws InvalidAnalyticsEventException si falta alguno de los campos obligatorios de RN-09
+         */
         // SRV-04 (CU-06)
     @Transactional
     public EventoAnaliticoResponse registrarEvento(EventoAnaliticoRequest request) {
@@ -201,6 +260,7 @@ public class AnalyticsService {
         return EventoAnaliticoMapper.toResponse(evento);
     }
 
+    // Observación: no se valida que entidadId sea positivo ni que fechaEvento no sea futura. Queda como mejora pendiente.
     // RN-09: tipoEvento, moduloOrigen, entidadId y fechaEvento son obligatorios
     private void validarEvento(EventoAnaliticoRequest request) {
         List<String> faltantes = new ArrayList<>();
@@ -216,6 +276,17 @@ public class AnalyticsService {
     }
 
 
+/**
+ * Guarda un snapshot con upsert (RN-06).
+ *
+ * 1. REP-05 busca el snapshot del mismo {@code fuente}, {@code tipo} y período.
+ * 2. Si existe, actualiza {@code valor} y {@code fechaCalculo} sobre la entidad administrada: Hibernate lo detecta
+ *    por dirty checking y emite un UPDATE. Si no existe, crea una entidad nueva.
+ * 3. {@code save} persiste la entidad nueva. Sobre una entidad ya administrada es redundante, pero no hace daño.
+ *
+ * Observación: dos ejecuciones simultáneas para el mismo período pueden intentar insertar dos filas. La restricción
+ * {@code uk_metrica_fuente_tipo_periodo} rechaza la segunda. No hay manejo específico de ese error.
+ */
     // RN-06: upsert. REP-05 busca el snapshot del período exacto y REP-04 lo persiste.
     private MetricaResumen guardarSnapshot(FuenteMetrica fuente, TipoMetrica tipo,
                                            LocalDate desde, LocalDate hasta, BigDecimal valor) {
@@ -232,6 +303,12 @@ public class AnalyticsService {
         return MetricaMapper.toResponse(metrica);
     }
 
+/**
+ * Cuenta cancelaciones de pedidos del período y guarda el snapshot (SRV-06, CU-08).
+ *
+ * Observación: el criterio de cancelación depende del texto {@code "CANCELADO"} en {@code detalle}, enviado por
+ * Pedidos. Un enum tipado en el evento sería más robusto. Es una alternativa a evaluar, no un defecto confirmado.
+ */
     // SRV-06 (CU-08): cuenta eventos de cancelación del período y guarda el snapshot (RN-03, RN-06)
     @Transactional
     public MetricaResumen analizarPedidosCancelados(LocalDate periodoDesde, LocalDate periodoHasta) {

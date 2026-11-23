@@ -12,6 +12,19 @@ import org.springframework.web.client.RestClientResponseException;
 import java.time.Duration;
 import java.util.Optional;
 
+/**
+ * Cliente HTTP a Catálogo (INT-03), activo solo con el perfil {@code integracion}.
+ *
+ * Decisiones:
+ * <ul>
+ *   <li>{@link org.springframework.web.client.RestClient} (API síncrona de Spring 6.1+), con timeouts de 2 s de conexión y 3 s de lectura para no bloquear hilos de forma indefinida.</li>
+ *   <li>{@code estado = ACTIVO} se traduce al booleano {@code activo} de {@code ComercioDTO}. El resto de los campos se ignora.</li>
+ *   <li>404 se traduce a {@code Optional.empty()}. Otros errores HTTP y fallos de red se traducen a {@code ExternalServiceUnavailableException}.</li>
+ * </ul>
+ *
+ * Observación: el path es {@code /api/v1/merchant/{id}} (singular). El mensaje de error de respuesta incompleta
+ * termina con un espacio y no incluye el código HTTP.
+ */
 // Adapter HTTP a Catálogo (INT-03). Endpoint público, sin API Key.
 @Component
 @Profile("integracion")

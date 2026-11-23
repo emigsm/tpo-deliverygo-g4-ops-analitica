@@ -4,6 +4,13 @@ import ar.edu.uade.api.deliverygo.dto.ResenaRequest;
 import ar.edu.uade.api.deliverygo.dto.ResenaResponse;
 import ar.edu.uade.api.deliverygo.model.Resena;
 
+/**
+ * Mapper entre ENT-01 y sus DTOs (DTO-01, DTO-02).
+ *
+ * {@code toEntity}: el {@code usuarioId} llega como argumento (identidad autenticada) y el {@code objetivoId}
+ * ya fue resuelto por el servicio. Ninguno de los dos viene del body. {@code toResponse} copia todos los campos
+ * de la entidad.
+ */
 // Mapper entre Resena y (ENT-01) y sus DTOs (DTO-01, DTO-02)
 public final class ResenaMapper {
 

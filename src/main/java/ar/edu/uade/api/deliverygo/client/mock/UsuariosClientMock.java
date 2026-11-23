@@ -8,6 +8,11 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Implementación de prueba de {@link ar.edu.uade.api.deliverygo.client.UsuariosClient}, activa fuera del perfil {@code integracion}.
+ *
+ * Datos fijos: el usuario {@code 100} existe y está activo.
+ */
 //Mock de Usuarios (DM-11)
 //@Component para que Spring los inyecte como implementación de las interfaces
 @Component

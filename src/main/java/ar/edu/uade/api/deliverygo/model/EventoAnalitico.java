@@ -9,6 +9,19 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/**
+ * ENT-03 - Entidad {@code eventos_analiticos}.
+ * <p>
+ * Registro crudo de un hecho operativo emitido por PEDIDOS, PAGOS o LOGISTICA (DM-14).
+ * Es la entrada de los análisis CU-08, CU-09 y CU-10: el {@code AnalyticsService} lee estos
+ * eventos, calcula y persiste el resultado como {@link Metrica}.
+ * <p>
+ * Decisiones:
+ * <ul>
+ *   <li>No tiene relación JPA con {@code Metrica} ni con {@code Resena}: el vínculo es de cálculo, no de modelo.</li>
+ *   <li>{@code entidadId} es un {@code Long} sin FK (DM-06), porque el pedido, pago o entrega vive en otro módulo.</li>
+ * </ul>
+ */
 @Entity
 @Table(name = "eventos_analiticos")
 public class EventoAnalitico {
