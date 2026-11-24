@@ -42,7 +42,7 @@ public class ComercioHttpClient implements ComercioClient {
     public Optional<ComercioDTO> obtenerComercio(Long comercioId) {
         try {
             ComercioResponse response = restClient.get()
-                    .uri("/api/v1/comercios/{id}", comercioId)
+                    .uri("/api/v1/comercios/{id}", comercioId)//actualizo a comercios para poder respetar el contrato de m-catalogo
                     .retrieve()
                     .body(ComercioResponse.class);
 
