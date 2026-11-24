@@ -5,7 +5,6 @@ package ar.edu.uade.api.deliverygo.dto;
  * ReviewService lo usa para validar el objetivo de la reseña (RN-08).
  */
 public class ComercioDTO {
-
     private Long id;
     private Boolean activo;
 

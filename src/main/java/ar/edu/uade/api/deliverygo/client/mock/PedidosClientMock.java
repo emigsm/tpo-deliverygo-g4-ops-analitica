@@ -1,54 +1,34 @@
 package ar.edu.uade.api.deliverygo.client.mock;
 
 import ar.edu.uade.api.deliverygo.client.PedidosClient;
-import ar.edu.uade.api.deliverygo.dto.OrdersStatsDTO;
 import ar.edu.uade.api.deliverygo.dto.PedidoDTO;
-import ar.edu.uade.api.deliverygo.excepcion.ExternalServiceUnavailableException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * Implementación de prueba de {@link ar.edu.uade.api.deliverygo.client.PedidosClient}.
- *
- * Datos fijos: pedido 1 (comercio 10, ENTREGADO), pedido 2 (repartidor 20, ENTREGADO) y pedido 3
- * (comercio 10, EN_CAMINO). Permite probar la validación de reseñas sin el módulo real.
- *
- * Estadísticas simuladas (INT-05 propuesto): {@code app.pedidos.mock.stats.disponible} y
- * {@code app.pedidos.mock.stats.cantidad-entregados} controlan la respuesta. Con {@code disponible=false} se puede
- * simular la indisponibilidad de Pedidos y el modo degradado (DM-09).
- *
- * Observación: los campos usan inyección por campo ({@code @Value} sobre el atributo). Un constructor sería más testeable.
+ * DM-11: mock de Pedidos (INT-01). Un pedido por cada situación que se quiere mostrar en la demo:
+ * 1 y 2 entregados del usuario 100 (comercio 10 y repartidor 20), 3 en camino (RN-01), 4 entregado del usuario 200 (RN-07),
+ * 5 con comercio inactivo, 6 de un usuario inactivo y 7 con repartidor inactivo (RN-08), 8 cancelado (RN-01)
+ * y 9 entregado con comercio y repartidor, para reseñar ambos del mismo pedido (DM-02).
  */
-//Mock de Pedidos (DM-11)
-//@Component para que Spring los inyecte como implementación de las interfaces
 @Component
 public class PedidosClientMock implements PedidosClient {
 
-    // Configuración exclusiva de CU-05; no altera obtenerPedido (CU-01/CU-02).
-    @Value("${app.pedidos.mock.stats.disponible:true}")
-    private boolean estadisticasDisponibles;
-
-    @Value("${app.pedidos.mock.stats.cantidad-entregados:2}")
-    private long cantidadEntregados;
-
-    private final Map<Long, PedidoDTO> pedidos = Map.of(1L, new PedidoDTO(1L, 100L, 10L, null, "ENTREGADO"), 2L, new PedidoDTO(2L, 100L, null, 20L, "ENTREGADO"), 3L, new PedidoDTO(3L, 100L, 10L, null, "EN_CAMINO")
-    );
+    private final Map<Long, PedidoDTO> pedidos = Map.of(
+            1L, new PedidoDTO(1L, 100L, 10L, null, "ENTREGADO"),
+            2L, new PedidoDTO(2L, 100L, null, 20L, "ENTREGADO"),
+            3L, new PedidoDTO(3L, 100L, 10L, null, "EN_CAMINO"),
+            4L, new PedidoDTO(4L, 200L, 10L, null, "ENTREGADO"),
+            5L, new PedidoDTO(5L, 100L, 11L, null, "ENTREGADO"),
+            6L, new PedidoDTO(6L, 300L, 10L, null, "ENTREGADO"),
+            7L, new PedidoDTO(7L, 100L, null, 21L, "ENTREGADO"),
+            8L, new PedidoDTO(8L, 100L, 10L, null, "CANCELADO"),
+            9L, new PedidoDTO(9L, 100L, 10L, 20L, "ENTREGADO"));
 
     @Override
     public Optional<PedidoDTO> obtenerPedido(Long pedidoId) {
         return Optional.ofNullable(pedidos.get(pedidoId));
-    }
-
-    @Override
-    public OrdersStatsDTO obtenerEstadisticas(String estado, LocalDate periodoDesde, LocalDate periodoHasta) {
-        if (!estadisticasDisponibles || cantidadEntregados < 0) {
-            throw new ExternalServiceUnavailableException("Estadísticas de Pedidos no disponibles (mock)");
-        }
-        // Agregado simulado para el período solicitado; no consulta pedidos individuales.
-        return new OrdersStatsDTO(estado, periodoDesde, periodoHasta, cantidadEntregados);
     }
 }

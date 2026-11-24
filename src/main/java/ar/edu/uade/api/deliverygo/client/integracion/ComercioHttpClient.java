@@ -13,19 +13,12 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Cliente HTTP a Catálogo (INT-03), activo solo con el perfil {@code integracion}.
- *
- * Decisiones:
- * <ul>
- *   <li>{@link org.springframework.web.client.RestClient} (API síncrona de Spring 6.1+), con timeouts de 2 s de conexión y 3 s de lectura para no bloquear hilos de forma indefinida.</li>
- *   <li>{@code estado = ACTIVO} se traduce al booleano {@code activo} de {@code ComercioDTO}. El resto de los campos se ignora.</li>
- *   <li>404 se traduce a {@code Optional.empty()}. Otros errores HTTP y fallos de red se traducen a {@code ExternalServiceUnavailableException}.</li>
- * </ul>
- *
- * Observación: el path es {@code /api/v1/merchant/{id}} (singular). El mensaje de error de respuesta incompleta
- * termina con un espacio y no incluye el código HTTP.
+ * DM-11: cliente HTTP al módulo Comercios/Catálogo (INT-03), activo solo con el perfil integracion. Endpoint público, sin API Key.
+ * DM-20: consume GET /api/v1/comercios/{id}, la ruta publicada en el contrato de Catálogo (openapi-catalogo.yaml).
+ * Usa RestClient con timeouts de 2 s de conexión y 3 s de lectura.
+ * Traduce estado = ACTIVO al booleano activo de ComercioDTO, 404 a Optional.empty() y cualquier otro error o falla de red
+ * a ExternalServiceUnavailableException.
  */
-// Adapter HTTP a Catálogo (INT-03). Endpoint público, sin API Key.
 @Component
 @Profile("integracion")
 public class ComercioHttpClient implements ComercioClient {
@@ -49,7 +42,7 @@ public class ComercioHttpClient implements ComercioClient {
     public Optional<ComercioDTO> obtenerComercio(Long comercioId) {
         try {
             ComercioResponse response = restClient.get()
-                    .uri("/api/v1/merchant/{id}", comercioId)
+                    .uri("/api/v1/comercios/{id}", comercioId)
                     .retrieve()
                     .body(ComercioResponse.class);
 

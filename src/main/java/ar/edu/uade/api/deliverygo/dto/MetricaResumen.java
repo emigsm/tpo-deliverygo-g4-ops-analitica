@@ -1,6 +1,7 @@
 package ar.edu.uade.api.deliverygo.dto;
 
 import ar.edu.uade.api.deliverygo.model.FuenteMetrica;
+import ar.edu.uade.api.deliverygo.model.OrigenMetrica;
 import ar.edu.uade.api.deliverygo.model.TipoMetrica;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -9,6 +10,7 @@ import java.time.LocalDate;
 
 /**
  * DTO-10 (salida, API-04): una métrica del tablero, sin id ni fechaCalculo (detalles internos de ENT-02).
+ * origen y formula se obtienen de TipoMetrica: dicen de dónde sale el dato y cómo se calcula.
  * valor es null en PROMEDIO_CALIFICACION sin reseñas y en TIEMPO_PROMEDIO_ENTREGA sin eventos con valor. Esos casos no se persisten porque Metrica.valor es NOT NULL.
  */
 @Schema(description = "Resumen de una métrica del tablero")
@@ -18,6 +20,10 @@ public class MetricaResumen {
     private FuenteMetrica fuente;
     @Schema(description = "Tipo de métrica", example = "CANTIDAD_RESENAS")
     private TipoMetrica tipoMetrica;
+    @Schema(description = "De dónde sale el dato: la tabla de reseñas propia o eventos enviados por otros módulos", example = "RESENAS_PROPIAS")
+    private OrigenMetrica origen;
+    @Schema(description = "Cómo se calcula el valor", example = "Cantidad de reseñas creadas en el período")
+    private String formula;
     @Schema(description = "Inicio del período incluido", example = "2025-01-01")
     private LocalDate periodoDesde;
     @Schema(description = "Fin del período incluido", example = "2025-01-31")
@@ -32,6 +38,8 @@ public class MetricaResumen {
                           LocalDate periodoHasta, BigDecimal valor) {
         this.fuente = fuente;
         this.tipoMetrica = tipoMetrica;
+        this.origen = tipoMetrica.getOrigen();
+        this.formula = tipoMetrica.getFormula();
         this.periodoDesde = periodoDesde;
         this.periodoHasta = periodoHasta;
         this.valor = valor;
@@ -51,6 +59,16 @@ public class MetricaResumen {
 
     public void setTipoMetrica(TipoMetrica tipoMetrica) {
         this.tipoMetrica = tipoMetrica;
+        this.origen = tipoMetrica.getOrigen();
+        this.formula = tipoMetrica.getFormula();
+    }
+
+    public OrigenMetrica getOrigen() {
+        return origen;
+    }
+
+    public String getFormula() {
+        return formula;
     }
 
     public LocalDate getPeriodoDesde() {

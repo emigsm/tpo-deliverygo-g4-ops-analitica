@@ -25,10 +25,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * - API-05: Permite registrar eventos
- * - API-06: Permite obtener métricas almacenadas por período
- * - CU-05: Disponibilizar tablero
- * - GET /status: Health check para validar estado de la API de nuestro módulo.
+ * API-04, API-05 y API-06 (CU-05 a CU-10): tablero de indicadores, métricas por período y registro de eventos.
+ * También expone GET /status, un health check para verificar que el módulo está activo.
  */
 @RestController
 @RequestMapping(value = "/api/v1", produces = "application/json")
@@ -39,9 +37,8 @@ public class AnalyticsController {
         this.analyticsService = analyticsService;
     }
 
-    // API-05 / CU-06 / SRV-04 / DTO-11 -> DTO-12.
-    // Responde 201 con el evento creado (DTO-12).
-    // Lo invocan otros módulos del ecosistema, no el Portal: se autentican con X-Api-Key, no con JWT.
+    // API-05 (CU-06, SRV-04, DTO-11 -> DTO-12): responde 201 con el evento registrado.
+    // Lo invocan otros módulos, no el Portal: se autentican con X-Api-Key, no con JWT (DM-19)
     @Operation(summary = "Registrar evento analítico",
             description = "CU-06 y RN-09: persiste un evento operativo emitido por otro módulo " +
                     "(Pedidos, Pagos o Logística) como insumo de las métricas. tipoEvento, moduloOrigen, " +
@@ -76,12 +73,11 @@ public class AnalyticsController {
         return ResponseEntity.status(HttpStatus.CREATED).body(analyticsService.registrarEvento(request));
     }
 
-    // API-06 / CU-07 / SRV-05 / DTO-10.
-    // Solo lee la tabla metricas; por eso no depende de Pedidos y responde aunque ese módulo esté caído.
+    // API-06 (CU-07, SRV-05, DTO-10): solo lee la tabla metricas, así que responde aunque Pedidos esté caído
     @Operation(summary = "Consultar métricas por período",
             description = "CU-07: lee snapshots previamente calculados y guardados. " +
                     "Devuelve los períodos completamente contenidos entre ambas fechas, con límites inclusivos. " +
-                    "No recalcula, no modifica datos ni llama a otros módulos. Sin resultados devuelve 200 con [].")
+                    "No recalcula, no modifica datos ni llama a otros módulos. Sin resultados devuelve 200 con []. Requiere rol ADMIN.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Lista de métricas guardadas, posiblemente vacía",
                     content = @Content(mediaType = "application/json",
@@ -89,7 +85,9 @@ public class AnalyticsController {
             @ApiResponse(responseCode = "400", description = "Fechas obligatorias, con formato inválido o rango invertido. " +
                     "El rango invertido usa ErrorResponseDTO; los errores de parámetros usan la respuesta de Spring.",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(oneOf = {ErrorResponseDTO.class, SpringBootErrorSchema.class})))
+                            schema = @Schema(oneOf = {ErrorResponseDTO.class, SpringBootErrorSchema.class}))),
+            @ApiResponse(responseCode = "403", description = "El token es válido pero su rol no es ADMIN",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
     @GetMapping("/analytics/metrics")
     public ResponseEntity<List<MetricaResumen>> consultarMetricasPorPeriodo(
@@ -100,21 +98,21 @@ public class AnalyticsController {
         return ResponseEntity.ok(analyticsService.consultarMetricasPorPeriodo(periodoDesde, periodoHasta));
     }
 
-    // Endpoint del tablero (CU-05). Las fechas omitidas toman la fecha del servidor; la lógica está en AnalyticsService.generarTablero.
+    // API-04 (CU-05, SRV-03, DTO-04): las fechas omitidas toman la fecha actual. La lógica está en AnalyticsService.generarTablero
     @Operation(summary = "Consultar tablero de analítica",
-            description = "CU-05 y CU-09, y CU_10, RN-03 y RN-06: obtiene cantidad de reseñas, promedio de calificación, pedidos entregados " +
-                    "y cantidad de pagos aprobados y rechazados a partir de eventos guardados. Sin eventos de pagos devuelve ambos contadores en cero. " +
-                    "Cada fecha omitida toma la fecha actual del servidor; ambos extremos son inclusivos. " +
-                    "Sin reseñas, el promedio es null y no se persiste. INT-05 es un contrato propuesto pendiente " +
-                    "de confirmación con Pedidos. Si falla esa fuente, usa exclusivamente el snapshot del período exacto " +
-                    "y responde con parcial=true; sin respaldo válido responde 503.")
+            description = "CU-05: genera el tablero del período con sus 8 indicadores: reseñas (cantidad y promedio), " +
+                    "pedidos entregados y cancelados (CU-08), pagos aprobados y rechazados (CU-09) y entregas con su " +
+                    "tiempo promedio (CU-10). Cada indicador informa su origen y su fórmula. Requiere rol ADMIN. " +
+                    "Cada fecha omitida toma la fecha actual; ambos extremos son inclusivos. " +
+                    "Sin reseñas o sin tiempos de entrega, el promedio es null y no se persiste. " +
+                    "No consulta a otros módulos: usa las reseñas propias y los eventos recibidos (DM-21).")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Tablero generado; parcial=true indica uso de un snapshot de Pedidos",
+            @ApiResponse(responseCode = "200", description = "Tablero generado",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = DashboardResponse.class))),
             @ApiResponse(responseCode = "400", description = "Período invertido o fecha con formato inválido. " +
                     "El período invertido usa ErrorResponseDTO; el formato inválido usa la respuesta estándar de Spring.",
                     content = @Content(mediaType = "application/json", schema = @Schema(oneOf = {ErrorResponseDTO.class, SpringBootErrorSchema.class}))),
-            @ApiResponse(responseCode = "503", description = "Pedidos no disponible o respuesta inválida, sin snapshot válido del período exacto",
+            @ApiResponse(responseCode = "403", description = "El token es válido pero su rol no es ADMIN",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
     @GetMapping("/analytics/dashboard")
@@ -128,6 +126,7 @@ public class AnalyticsController {
         return ResponseEntity.ok(analyticsService.generarTablero(desde, hasta));
     }
 
+    // Health check público: no consulta la BD ni otros módulos
     @Operation(summary = "Health check del módulo",
             description = "Devuelve 200 con status UP si el módulo está levantado.")
     @ApiResponse(responseCode = "200", description = "Módulo operativo")

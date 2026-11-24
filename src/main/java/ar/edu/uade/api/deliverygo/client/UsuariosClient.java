@@ -5,11 +5,11 @@ import ar.edu.uade.api.deliverygo.dto.UsuarioDTO;
 import java.util.Optional;
 
 /**
- * Puerto (adapter, DM-11) hacia el módulo Usuarios (INT-02).
+ * DM-11: adapter hacia el módulo Usuarios (INT-02). Perfil integracion: UsuariosHttpClient. Resto: UsuariosClientMock.
  */
-//Adapter a Usuarios (DM-11)
 public interface UsuariosClient {
 
-    //GET /api/v1/users/{id} (INT-02) Devuelve 200, 404, 503
+    // INT-02 (RN-08): devuelve el usuario, o vacío si no existe (404).
+    // Si el módulo no responde lanza ExternalServiceUnavailableException (503)
     Optional<UsuarioDTO> obtenerUsuario(Long usuarioId);
 }

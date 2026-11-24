@@ -9,17 +9,17 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Implementación de prueba de {@link ar.edu.uade.api.deliverygo.client.UsuariosClient}, activa fuera del perfil {@code integracion}.
- *
- * Datos fijos: el usuario {@code 100} existe y está activo.
+ * DM-11: mock de Usuarios (INT-02), activo fuera del perfil integracion.
+ * Datos fijos: el usuario 100 y el 200 existen y están activos; el 300 existe pero está inactivo (RN-08).
  */
-//Mock de Usuarios (DM-11)
-//@Component para que Spring los inyecte como implementación de las interfaces
 @Component
 @Profile("!integracion")
 public class UsuariosClientMock implements UsuariosClient {
 
-    private final Map<Long, UsuarioDTO> usuarios = Map.of(100L, new UsuarioDTO(100L, true));
+    private final Map<Long, UsuarioDTO> usuarios = Map.of(
+            100L, new UsuarioDTO(100L, true),
+            200L, new UsuarioDTO(200L, true),
+            300L, new UsuarioDTO(300L, false));
 
     @Override
     public Optional<UsuarioDTO> obtenerUsuario(Long usuarioId) {

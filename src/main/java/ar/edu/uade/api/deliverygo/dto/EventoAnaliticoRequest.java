@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
  * No usa Bean Validation: RN-09 se valida en SRV-04 para responder con ErrorResponseDTO.
  */
 public class EventoAnaliticoRequest {
-
     private TipoEvento tipoEvento;
     private ModuloOrigen moduloOrigen;
     private Long entidadId;

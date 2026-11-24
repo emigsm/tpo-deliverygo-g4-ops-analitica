@@ -14,14 +14,10 @@ import java.time.Duration;
 import java.util.Optional;
 
 /**
- * Cliente HTTP a Usuarios (INT-02), activo solo con el perfil {@code integracion}.
- *
- * Igual que {@code ComercioHttpClient} en timeouts y mapeo de errores, con una diferencia: envía la clave
- * en el header {@code X-Api-Key}, configurada con la propiedad {@code integraciones.usuarios.api-key}.
- *
- * Observación: esa propiedad no está en {@code application.properties}. Debe venir de otro archivo o variable de entorno.
+ * DM-11: cliente HTTP al módulo Usuarios (INT-02), activo solo con el perfil integracion.
+ * Igual que ComercioHttpClient en timeouts y errores, pero envía la clave en el header X-Api-Key (integraciones.usuarios.api-key).
+ * Traduce estado (ACTIVO o INACTIVO) al booleano activo de UsuarioDTO.
  */
-// Adapter HTTP a Usuarios (INT-02). Traduce estado (ACTIVO/INACTIVO) a activo (DM-11).
 @Component
 @Profile("integracion")
 public class UsuariosHttpClient implements UsuariosClient {

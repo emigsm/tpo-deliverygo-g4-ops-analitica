@@ -1,10 +1,7 @@
 package ar.edu.uade.api.deliverygo.excepcion;
 
 /**
- * Falta algún campo obligatorio de un evento analítico (RN-09).
- *
- * Decisión: como es {@code RuntimeException}, un lanzamiento dentro de {@code @Transactional} revierte la transacción.
- * Se traduce a 400 con código INVALID_ANALYTICS_EVENT.
+ * RN-09 (CU-06): falta un campo obligatorio del evento, entidadId no es positivo o fechaEvento es futura. Se traduce a 400 (INVALID_ANALYTICS_EVENT).
  */
 public class InvalidAnalyticsEventException extends RuntimeException {
     public InvalidAnalyticsEventException(String message) {

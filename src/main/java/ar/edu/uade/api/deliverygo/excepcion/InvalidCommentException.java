@@ -1,10 +1,7 @@
 package ar.edu.uade.api.deliverygo.excepcion;
 
 /**
- * El comentario supera los 1000 caracteres.
- *
- * Decisión: como es {@code RuntimeException}, un lanzamiento dentro de {@code @Transactional} revierte la transacción.
- * Se traduce a 400 con código INVALID_COMMENT.
+ * CU-01, CU-02: el comentario supera los 1000 caracteres. Se traduce a 400 (INVALID_COMMENT).
  */
 public class InvalidCommentException extends RuntimeException {
 

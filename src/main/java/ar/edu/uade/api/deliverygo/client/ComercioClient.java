@@ -3,20 +3,12 @@ import ar.edu.uade.api.deliverygo.dto.ComercioDTO;
 import java.util.Optional;
 
 /**
- * Puerto (adapter, DM-11) hacia el módulo Comercios / Catálogo (INT-03).
- *
- * Dos implementaciones, seleccionadas por perfil: {@code ComercioHttpClient} (perfil {@code integracion}) y
- * {@code ComercioClientMock} (resto). {@code ReviewService} depende solo de esta interfaz.
- *
- * Contrato: {@code Optional.empty()} para un comercio inexistente (404); {@code ExternalServiceUnavailableException}
- * para indisponibilidad.
- *
- * Observación: el comentario del método dice {@code /api/v1/merchants/{id}} y el cliente HTTP llama a
- * {@code /api/v1/merchant/{id}}. Ver guía de observaciones.
+ * DM-11: adapter hacia el módulo Comercios (INT-03). ReviewService depende solo de esta interfaz.
+ * Perfil integracion: ComercioHttpClient. Resto: ComercioClientMock.
  */
-//Adapter al módulo Comercios (DM-11)
 public interface ComercioClient {
 
-    // GET /api/v1/merchant/{id} (INT-03) devuelve 200, 404, 503
+    // INT-03 (RN-08): devuelve el comercio, o vacío si no existe (404).
+    // Si el módulo no responde lanza ExternalServiceUnavailableException (503)
     Optional<ComercioDTO> obtenerComercio(Long comercioId);
 }

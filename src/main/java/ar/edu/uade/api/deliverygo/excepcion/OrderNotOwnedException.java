@@ -1,11 +1,8 @@
 package ar.edu.uade.api.deliverygo.excepcion;
 
-// El pedido no pertenece al usuario autenticado (RN-07)
 /**
- * El pedido pertenece a otro usuario (RN-07).
- *
- * Decisión: como es {@code RuntimeException}, un lanzamiento dentro de {@code @Transactional} revierte la transacción.
- * Se traduce a 422. Alternativa: 403 Forbidden, que describe mejor el caso; se mantiene 422 como lo documenta OpenAPI en {@code OpinionesController}.
+ * RN-07 (CU-01, CU-02): el pedido pertenece a otro usuario. Se traduce a 422 (BUSINESS_RULE_VIOLATION).
+ * Se usa 422 y no 403, como está documentado en OpenAPI.
  */
 public class OrderNotOwnedException extends RuntimeException {
     public OrderNotOwnedException(String mensaje) {

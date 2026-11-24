@@ -9,16 +9,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * Traduce las excepciones de negocio a ErrorResponseDTO con su código HTTP y un código estable.
- * Permite tener un único punto de mapeo. Todas las respuestas de error tendrán el mismo formato y un correlationId.
- * Las excepciones no declaradas acá usan el manejo por defecto de Spring.
- * Mapeo:
- *   400: validaciones de entrada (puntuación, comentario, período, pedido, tipo, evento).
- *   403: evento enviado con la X-Api-Key de otro módulo (API-05).
- *   409: reseña duplicada (RN-02).
- *   422: pedido inexistente o no entregado, pedido de otro usuario, usuario u objetivo inexistente o inactivo.
- *   503: servicio externo no disponible.
- * Cada handler hace lo mismo: recibe la excepción y llama a construir() con el HttpStatus que le corresponde.
+ * Traduce las excepciones de negocio a ErrorResponseDTO, con su código HTTP y un code estable.
+ * Todas extienden RuntimeException: si se lanzan dentro de un @Transactional, se revierte la transacción.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -105,7 +97,7 @@ public class GlobalExceptionHandler {
     }
 
     // 503 SERVICE_UNAVAILABLE: falla un módulo externo
-    // INT-01 a INT-05: el módulo externo no responde o devolvió un dato inválido
+    // INT-01 a INT-04: el módulo externo no responde o devolvió un dato inválido
     @ExceptionHandler(ExternalServiceUnavailableException.class)
     public ResponseEntity<ErrorResponseDTO> manejarExternalServiceUnavailable(
             ExternalServiceUnavailableException ex, HttpServletRequest request) {

@@ -5,13 +5,11 @@ import ar.edu.uade.api.deliverygo.dto.RepartidorDTO;
 import java.util.Optional;
 
 /**
- * Puerto (adapter, DM-11) hacia el módulo Logística (INT-04). Devuelve el repartidor o vacío si no existe.
- *
- * Observación: solo existe la implementación mock ({@code LogisticaClientMock}), sin perfil. No hay cliente HTTP en el repositorio.
+ * DM-11: adapter hacia el módulo Logística (INT-04). Hoy solo existe LogisticaClientMock, sin cliente HTTP.
  */
-//Adapter a módulo Logística (DM-11)
 public interface LogisticaClient {
 
-    // GET /api/v1/couriers/{id} (INT-04) devuelve 200, 404, 503.
+    // INT-04 (RN-08): devuelve el repartidor, o vacío si no existe (404).
+    // Si el módulo no responde lanza ExternalServiceUnavailableException (503)
     Optional<RepartidorDTO> obtenerRepartidor(Long repartidorId);
 }

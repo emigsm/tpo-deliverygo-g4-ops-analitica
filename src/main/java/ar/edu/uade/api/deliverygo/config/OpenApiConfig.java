@@ -6,6 +6,8 @@ import io.swagger.v3.oas.models.examples.Example;
 import io.swagger.v3.oas.models.security.SecurityScheme;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import org.springdoc.core.customizers.OpenApiCustomizer;
+import ar.edu.uade.api.deliverygo.model.FuenteMetrica;
+import ar.edu.uade.api.deliverygo.model.TipoMetrica;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -22,12 +24,12 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI deliveryGoOpenAPI() {
         return new OpenAPI().info(new Info().title("DeliveryGo API - Opiniones y Analítica")
-                .version("1.1").description("API-01 a API-04 y API-06 implementadas. API-06 consulta snapshots guardados. Integraciones externas mock. "
+                .version("1.1").description("API-01 a API-06 implementadas. "
                         + "Autenticación: JWT Bearer emitido por el módulo Usuarios (HS256). El id del usuario sale del claim sub. "
                         + "Roles: CLIENTE crea reseñas; ADMIN consulta tablero y métricas. Los eventos (API-05) los envían los módulos con X-Api-Key. "
-                        + "API-05 sigue siendo una propuesta sin implementación. Los YAML presentados se conservan como referencia de la entrega. "
-                        + "Cambio incompatible: errores manejados usan code/message en lugar de error/mensaje, "
-                        + "timestamp UTC y correlationId. Errores del framework y seguridad conservan su formato."))
+                        + "Integraciones: mocks por defecto; el perfil integracion usa clientes HTTP para Usuarios y Comercios. "
+                        + "Los errores usan code, message, timestamp UTC y correlationId, incluidos los de seguridad (401 y 403). "
+                        + "Los errores del framework, como un JSON ilegible, conservan su formato."))
                 .components(new Components().addSecuritySchemes("bearerAuth",
                         new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT"))
                         // API-05: los módulos emisores usan clave en lugar de JWT
@@ -72,18 +74,24 @@ public class OpenApiConfig {
                                 + ",\"tipoObjetivo\":\"" + (merchant ? "COMERCIO" : "REPARTIDOR")
                                 + "\",\"promedio\":null,\"cantidadResenas\":0}"));
                     } else if (status.equals("200") && path.endsWith("/metrics")) {
-                        json.addExamples("conMetricas", example("""
-                                [{"fuente":"RESENAS","tipoMetrica":"CANTIDAD_RESENAS","periodoDesde":"2026-11-01","periodoHasta":"2026-11-09","valor":3}]
-                                """));
+                        json.addExamples("conMetricas", example("["
+                                + metricaJson(FuenteMetrica.RESENAS, TipoMetrica.CANTIDAD_RESENAS, "2026-11-01", "2026-11-09", "3") + "]"));
                         json.addExamples("sinSnapshots", example("[]"));
                     } else if (status.equals("200") && path.endsWith("/dashboard")) {
-                        String dashboard = """
-                                {"generadoEn":"2026-10-30T12:00:00","metricas":[{"fuente":"RESENAS","tipoMetrica":"CANTIDAD_RESENAS","periodoDesde":"2026-10-01","periodoHasta":"2026-10-30","valor":0},{"fuente":"RESENAS","tipoMetrica":"PROMEDIO_CALIFICACION","periodoDesde":"2026-10-01","periodoHasta":"2026-10-30","valor":null},{"fuente":"PEDIDOS","tipoMetrica":"PEDIDOS_ENTREGADOS","periodoDesde":"2026-10-01","periodoHasta":"2026-10-30","valor":2},{"fuente":"PAGOS","tipoMetrica":"CANTIDAD_PAGOS_APROBADOS","periodoDesde":"2026-10-01","periodoHasta":"2026-10-30","valor":0},{"fuente":"PAGOS","tipoMetrica":"CANTIDAD_PAGOS_RECHAZADOS","periodoDesde":"2026-10-01","periodoHasta":"2026-10-30","valor":0},{"fuente":"LOGISTICA","tipoMetrica":"CANTIDAD_ENTREGAS","periodoDesde":"2026-10-01","periodoHasta":"2026-10-30","valor":0},{"fuente":"LOGISTICA","tipoMetrica":"TIEMPO_PROMEDIO_ENTREGA","periodoDesde":"2026-10-01","periodoHasta":"2026-10-30","valor":null}],"parcial":false}
-                                """;
-                        json.addExamples("completo", example(dashboard));
-                        json.addExamples("respaldoPeriodoExacto", example(dashboard.replace("false", "true")));
+                        // Los ejemplos se arman desde TipoMetrica, así origen y formula coinciden siempre con la respuesta real
+                        String metricas = String.join(",",
+                                metricaJson(FuenteMetrica.RESENAS, TipoMetrica.CANTIDAD_RESENAS, "2026-10-01", "2026-10-30", "2"),
+                                metricaJson(FuenteMetrica.RESENAS, TipoMetrica.PROMEDIO_CALIFICACION, "2026-10-01", "2026-10-30", "4.50"),
+                                metricaJson(FuenteMetrica.PEDIDOS, TipoMetrica.PEDIDOS_ENTREGADOS, "2026-10-01", "2026-10-30", "5"),
+                                metricaJson(FuenteMetrica.PEDIDOS, TipoMetrica.CANTIDAD_PEDIDOS_CANCELADOS, "2026-10-01", "2026-10-30", "1"),
+                                metricaJson(FuenteMetrica.PAGOS, TipoMetrica.CANTIDAD_PAGOS_APROBADOS, "2026-10-01", "2026-10-30", "4"),
+                                metricaJson(FuenteMetrica.PAGOS, TipoMetrica.CANTIDAD_PAGOS_RECHAZADOS, "2026-10-01", "2026-10-30", "1"),
+                                metricaJson(FuenteMetrica.LOGISTICA, TipoMetrica.CANTIDAD_ENTREGAS, "2026-10-01", "2026-10-30", "5"),
+                                metricaJson(FuenteMetrica.LOGISTICA, TipoMetrica.TIEMPO_PROMEDIO_ENTREGA, "2026-10-01", "2026-10-30", "32.50"));
+                        json.addExamples("completo", example("{\"generadoEn\":\"2026-10-30T12:00:00\",\"metricas\":[" + metricas + "]}"));
                     } else {
                         String code = switch (status) {
+                            case "403" -> "FORBIDDEN";
                             case "409" -> "DUPLICATE_REVIEW";
                             case "422" -> "BUSINESS_RULE_VIOLATION";
                             case "503" -> "EXTERNAL_SERVICE_UNAVAILABLE";
@@ -91,6 +99,7 @@ public class OpenApiConfig {
                         };
 
                         String message = switch (code) {
+                            case "FORBIDDEN" -> "El rol del usuario no tiene permiso para esta operación";
                             case "DUPLICATE_REVIEW" -> "Ya existe una reseña para ese pedido y tipo";
                             case "BUSINESS_RULE_VIOLATION" -> "El pedido no fue entregado";
                             case "EXTERNAL_SERVICE_UNAVAILABLE" -> "Servicio externo no disponible";
@@ -110,6 +119,13 @@ public class OpenApiConfig {
                 });
             }));
         };
+    }
+
+    // Arma el JSON de una métrica con su origen y fórmula tomados de TipoMetrica
+    private static String metricaJson(FuenteMetrica fuente, TipoMetrica tipo, String desde, String hasta, String valor) {
+        return "{\"fuente\":\"" + fuente + "\",\"tipoMetrica\":\"" + tipo + "\",\"origen\":\"" + tipo.getOrigen()
+                + "\",\"formula\":\"" + tipo.getFormula() + "\",\"periodoDesde\":\"" + desde
+                + "\",\"periodoHasta\":\"" + hasta + "\",\"valor\":" + valor + "}";
     }
 
     private static Example example(String json) {

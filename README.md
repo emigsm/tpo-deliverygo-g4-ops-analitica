@@ -70,7 +70,8 @@ mvn test
 
 Los tests usan JUnit 5 y MockMvc con los mocks de los otros módulos, sin servicios externos.
 Cubren la seguridad (401, 403, token vencido o adulterado, `X-Api-Key`), las reglas de reseñas
-(duplicada, pedido no entregado o de otro usuario) y las validaciones de eventos y períodos.
+(duplicada, pedido no entregado o de otro usuario), los períodos de fechas, el cálculo de los indicadores y la
+degradación cuando falla un módulo externo. Los servicios se prueban con Mockito y los controllers con MockMvc.
 
 ## Autenticación (JWT)
 
@@ -109,12 +110,18 @@ día de arranque. Requieren un token (ver [Autenticación](#autenticación-jwt))
 
 | Dato mock | Valor |
 | --- | --- |
-| Usuario activo | 100 |
-| Comercio activo | 10 |
-| Repartidor activo | 20 |
-| Pedido 1 | usuario 100, comercio 10, ENTREGADO |
-| Pedido 2 | usuario 100, repartidor 20, ENTREGADO |
-| Pedido 3 | usuario 100, comercio 10, EN_CAMINO (reseña: 422) |
+| Usuarios | 100 y 200 activos, 300 inactivo |
+| Comercios | 10 activo, 11 inactivo |
+| Repartidores | 20 activo, 21 inactivo |
+| Pedidos 1, 2 | Usuario 100, ENTREGADO, con comercio 10 y repartidor 20 |
+| Pedido 3, 8 | Usuario 100, EN_CAMINO y CANCELADO (reseña: 422) |
+| Pedido 4 | Usuario 200, comercio 10, ENTREGADO |
+| Pedidos 5, 6, 7 | Comercio inactivo, usuario inactivo y repartidor inactivo (reseña: 422) |
+| Pedido 9 | Usuario 100, comercio 10 y repartidor 20, ENTREGADO |
+| Eventos de hoy | 3 pedidos entregados, 1 cancelado, 4 pagos aprobados, 1 rechazado y 3 entregas |
+
+Para probar todos los casos con Postman, importar `postman/DeliveryGo-Analitica.postman_collection.json`:
+tiene un request por cada CU y regla, genera los tokens JWT solos y verifica cada resultado.
 
 ```sh
 # Health check (público)
@@ -140,7 +147,8 @@ En PowerShell usar `curl.exe` y escapar las comillas del JSON
 (`-d "{\"pedidoId\":1,\"tipoObjetivo\":\"COMERCIO\",\"puntuacion\":5}"`).
 
 Perfil `integracion`: Comercios y Usuarios por HTTP; Pedidos y Logística siguen con mock
-y no se precargan reseñas. Las URLs y la API key son obligatorias:
+y no se precargan datos demo. Las URLs y la API key tienen valores por defecto en `application.properties`
+(`localhost:8081` para Comercios y `localhost:8082` para Usuarios) y se pueden sobrescribir:
 
 ```sh
 mvn spring-boot:run -Dspring-boot.run.profiles=integracion \
@@ -149,10 +157,11 @@ mvn spring-boot:run -Dspring-boot.run.profiles=integracion \
 
 ## Integraciones externas
 
-Usuarios, Pedidos, Comercios y Logística cuentan con adaptadores y mocks locales;
-no hay clientes HTTP reales. Los eventos de Pedidos, Pagos y Logística ingresan por
-API-05 (CU-06) y se analizan en el tablero. **INT-05 es propuesto y está pendiente de
-confirmación con Pedidos.**
+Usuarios y Comercios tienen cliente HTTP real (perfil `integracion`) y mock. Pedidos y Logística
+solo tienen mock: sus contratos publicados no son compatibles con los ids de este módulo
+(ver las brechas en el documento de APIs). Los eventos de Pedidos, Pagos y Logística ingresan por
+API-05 (CU-06) y se analizan en el tablero: ningún indicador depende de una consulta a otro
+módulo, y cada uno informa su `origen` y su `formula` (DM-21).
 [Detalle en el documento de APIs](docs/tpo-apis-grupo-4-v1.5.md).
 
 ## Documentación

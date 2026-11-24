@@ -24,9 +24,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 
 /**
- * Controller de reseñas y calificaciones (API-01, API-02, API-03)
- * Agrego JWT: el usuario sale del JWT validado por JwtAuthFilter. Solo un usuario con rol\
- * CLIENTE puede crear reseñas (regla en SecurityConfig).
+ * API-01, API-02 y API-03 (CU-01 a CU-04): crear reseñas y consultar el rating de comercios y repartidores.
+ * DM-19: el usuario sale del JWT validado por JwtAuthFilter. Solo el rol CLIENTE puede crear reseñas (regla en SecurityConfig).
  */
 @RestController
 @RequestMapping(value = "/api/v1", produces = "application/json")
@@ -34,7 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OpinionesController {
 
 /**
- * Esquema usado solo por OpenAPI - Anotaciones @Schema para documentar el error de binding de Spring.
+ * Esquema usado solo por OpenAPI - Anotaciones schema para documentar el error de binding de Spring.
  */
 @Schema(name = "SpringBootError", description = "Respuesta JSON de Spring Boot para errores de binding; no es ErrorResponseDTO",
         requiredProperties = {"timestamp", "status", "error", "path"})
@@ -47,7 +46,6 @@ public OpinionesController(ReviewService reviewService) {
 
 /**
  * Crea una reseña (API-01, CU-01 y CU-02). Responde 201 con la reseña creada.
- * El usuario se toma del token JWT, no del body.
  */
 @Operation(
         summary = "Crear reseña",
@@ -61,7 +59,7 @@ public OpinionesController(ReviewService reviewService) {
         @ApiResponse(responseCode = "400", description = "Puntuación nula o fuera del rango 1 a 5 (ErrorResponseDTO); body inválido (Spring Boot)",
                 content = @Content(mediaType = "application/json", schema = @Schema(oneOf = {ErrorResponseDTO.class, SpringBootErrorSchema.class}))),
         @ApiResponse(responseCode = "403", description = "El token es válido pero su rol no es CLIENTE",
-                content = @Content),
+                content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseDTO.class))),
         @ApiResponse(responseCode = "409", description = "Ya existe una reseña del usuario para ese pedido y tipo",
                 content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseDTO.class))),
         @ApiResponse(responseCode = "422", description = "El pedido no existe o no fue entregado, no pertenece al usuario, o el usuario/objetivo no existe o está inactivo",
@@ -80,7 +78,7 @@ public ResponseEntity<ResenaResponse> crearResena(
         // hidden = true: Spring lo completa solo, no es un dato que envíe el cliente (no aparece en Swagger).
         @Parameter(hidden = true) Authentication authentication) {
 
-    // El filtro JWT ya garantizó que "sub" es un número (si no, el token se rechaza con 401).
+    // DM-19: el filtro JWT ya garantizó que sub es un número (si no, el token se rechaza con 401)
     Long usuarioIdAutenticado = Long.valueOf(authentication.getName());
     ResenaResponse response = reviewService.crearResena(resenaRequest, usuarioIdAutenticado);
 
@@ -88,15 +86,13 @@ public ResponseEntity<ResenaResponse> crearResena(
 }
 
 /**
- * Calificación promedio de un comercio (API-02, CU-03). Responde 200 aun sin reseñas (DM-12).
+ * API-02 (CU-03): calificación promedio de un comercio. DM-12: responde 200 aun sin reseñas.
  */
 @Operation(summary = "Calificación promedio de un comercio",
         description = "CU-03: consulta la calificación promedio y la cantidad de reseñas del comercio.")
 @ApiResponses({@ApiResponse(responseCode = "200", description = "Calificación calculada. Si no hay reseñas, promedio es null y cantidadResenas es 0.",
             content = @Content(mediaType = "application/json", schema = @Schema(implementation = RatingResponse.class)))})
-
-
-@GetMapping("/merchant/{id}/rating")
+@GetMapping("/merchants/{id}/rating")
 public ResponseEntity<RatingResponse> obtenerRatingComercio(
         @Parameter(description = "Id del comercio", required = true, example = "10")
         @PathVariable("id") Long id) {
@@ -106,7 +102,7 @@ public ResponseEntity<RatingResponse> obtenerRatingComercio(
 }
 
 /**
- * Calificación promedio de un repartidor (API-03, CU-04). Responde 200 aun sin reseñas (DM-12).
+ * API-03 (CU-04): calificación promedio de un repartidor. DM-12: responde 200 aun sin reseñas.
  */
 @Operation(summary = "Calificación promedio de un repartidor",
         description = "CU-04: consulta la calificación promedio y la cantidad de reseñas del repartidor.")

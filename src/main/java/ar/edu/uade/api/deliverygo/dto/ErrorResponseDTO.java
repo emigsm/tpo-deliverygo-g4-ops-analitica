@@ -4,14 +4,13 @@ import java.time.Instant;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * Formato de error de la API, producido por GlobalExceptionHandler y SecurityErrorHandler.
- * code es un código estable que el cliente puede comparar sin leer el mensaje. correlationId es el X-Correlation-Id
+ * Producido por GlobalExceptionHandler y SecurityErrorHandler.
+ * code es un código estándar que se le muestra al cliente. correlationId es para la trazabilidad
  * recibido (si es un UUID válido) o uno generado.
  */
 @Schema(description = "Formato de error devuelto por el manejador global de excepciones",
         requiredProperties = {"timestamp", "status", "code", "message", "path", "correlationId"})
 public class ErrorResponseDTO {
-
     @Schema(description = "Fecha y hora UTC del error", example = "2026-10-30T12:00:00Z")
     private Instant timestamp;
     @Schema(description = "Código HTTP", example = "400")

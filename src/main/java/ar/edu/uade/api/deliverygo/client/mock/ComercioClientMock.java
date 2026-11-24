@@ -9,17 +9,16 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Implementación de prueba de {@link ar.edu.uade.api.deliverygo.client.ComercioClient}, activa fuera del perfil {@code integracion}.
- *
- * Datos fijos: el comercio {@code 10} existe y está activo. Cualquier otro id devuelve vacío.
+ * DM-11: mock de Comercios (INT-03), activo fuera del perfil integracion.
+ * Datos fijos: el comercio 10 está activo y el 11 existe pero está inactivo (RN-08).
  */
-//Mock de Comercio (DM-11)
-//@Component para que Spring los inyecte como implementación de las interfaces
 @Component
 @Profile("!integracion")
 public class ComercioClientMock implements ComercioClient {
 
-    private final Map<Long, ComercioDTO> comercios = Map.of(10L, new ComercioDTO(10L, true));
+    private final Map<Long, ComercioDTO> comercios = Map.of(
+            10L, new ComercioDTO(10L, true),
+            11L, new ComercioDTO(11L, false));
 
     @Override
     public Optional<ComercioDTO> obtenerComercio(Long comercioId) {

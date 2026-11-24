@@ -4,9 +4,8 @@ import ar.edu.uade.api.deliverygo.dto.MetricaResumen;
 import ar.edu.uade.api.deliverygo.model.Metrica;
 
 /**
- * Mapper de salida: ENT-02 a DTO-10. Omite {@code id} y {@code fechaCalculo} a propósito: el tablero no los expone.
+ * ENT-02 -> DTO-10 (CU-05): omite id y fechaCalculo, que el tablero no expone.
  */
-// Convierte Metrica (ENT-02) al resumen de salida del tablero (DTO-10).
 public final class MetricaMapper {
 
     private MetricaMapper() {

@@ -8,12 +8,10 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * ENT-01: acceso a la tabla resenas.
- * RN-05: ReviewService no usa delete ni update, aunque JpaRepository los hereda.
+ * RN-05: ReviewService no usa delete ni update, pero JpaRepository los hereda.
  * RN-02: existsBy... es el control previo; la garantía final es la restricción uk_resena_usuario_pedido_tipo.
  */
 public interface ResenaRepository extends JpaRepository<Resena, Long> {
-
     // REP-01 (CU-01, CU-02, RN-02): verifica que no exista ya una reseña del usuario para ese pedido y tipo
     boolean existsByUsuarioIdAndPedidoIdAndTipoObjetivo(Long usuarioId, Long pedidoId, TipoObjetivo tipoObjetivo);
     // REP-02 (CU-01, CU-02): persistir la reseña es el save() heredado de JpaRepository

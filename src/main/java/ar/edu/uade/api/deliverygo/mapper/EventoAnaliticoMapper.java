@@ -6,12 +6,9 @@ import ar.edu.uade.api.deliverygo.dto.EventoAnaliticoResponse;
 import ar.edu.uade.api.deliverygo.model.EventoAnalitico;
 
 /**
- * Mapper estático entre ENT-03 ({@link ar.edu.uade.api.deliverygo.model.EventoAnalitico}) y sus DTOs (DTO-11, DTO-12).
- *
- * Decisión: mapeo manual y sin estado, con constructor privado. El mapeo es trivial y el pom no incluye
- * MapStruct ni otra librería de mapeo.
+ * ENT-03 <-> DTO-11 y DTO-12: convierte el request en entidad y la entidad en response.
+ * Mapeo manual y sin estado: es trivial y el pom no incluye MapStruct.
  */
-// Convierte entre EventoAnalitico (ENT-03) y sus DTOs (DTO-11, DTO-12)
 public class EventoAnaliticoMapper {
     private EventoAnaliticoMapper() {
         // Clase de utilidad: no se instancia

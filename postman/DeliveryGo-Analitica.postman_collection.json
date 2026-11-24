@@ -1,0 +1,2572 @@
+{
+  "info": {
+    "name": "DeliveryGo - Opiniones y Analítica (demo)",
+    "description": "Un request por cada CU y cada regla. Los tokens JWT y las fechas los genera el script de la colección. Orden: correr toda la colección (Runner) con la app recién iniciada. Si se vuelve a correr, reiniciar la app: H2 está en memoria y las reseñas ya creadas darían 409.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// DM-19: genera los tokens JWT de prueba (HS256) con la clave demo y las fechas que usan los requests.",
+          "// No hace falta jwt.io ni el módulo Usuarios. La clave está en la variable jwtSecret.",
+          "const secret = pm.collectionVariables.get(\"jwtSecret\");",
+          "const b64url = (wa) => CryptoJS.enc.Base64.stringify(wa).replace(/=+$/, \"\").replace(/\\+/g, \"-\").replace(/\\//g, \"_\");",
+          "function token(sub, role, segundosDeVida) {",
+          "    const ahora = Math.floor(Date.now() / 1000);",
+          "    const header = b64url(CryptoJS.enc.Utf8.parse(JSON.stringify({ alg: \"HS256\", typ: \"JWT\" })));",
+          "    const payload = b64url(CryptoJS.enc.Utf8.parse(JSON.stringify({ sub: String(sub), role: role, iat: ahora - 3600, exp: ahora + segundosDeVida })));",
+          "    return header + \".\" + payload + \".\" + b64url(CryptoJS.HmacSHA256(header + \".\" + payload, secret));",
+          "}",
+          "pm.collectionVariables.set(\"tokenCliente100\", token(100, \"CLIENTE\", 86400));",
+          "pm.collectionVariables.set(\"tokenCliente200\", token(200, \"CLIENTE\", 86400));",
+          "pm.collectionVariables.set(\"tokenCliente300\", token(300, \"CLIENTE\", 86400));",
+          "pm.collectionVariables.set(\"tokenAdmin\", token(1, \"ADMIN\", 86400));",
+          "pm.collectionVariables.set(\"tokenVencido\", token(100, \"CLIENTE\", -60));",
+          "",
+          "// Fechas locales (el módulo corre en la misma máquina). fechaEvento es de hace 2 minutos: RN-09 no acepta fechas futuras.",
+          "const pad = (n) => String(n).padStart(2, \"0\");",
+          "const d = new Date();",
+          "pm.collectionVariables.set(\"fechaHoy\", d.getFullYear() + \"-\" + pad(d.getMonth() + 1) + \"-\" + pad(d.getDate()));",
+          "const h = new Date(Date.now() - 120000);",
+          "pm.collectionVariables.set(\"fechaEvento\", h.getFullYear() + \"-\" + pad(h.getMonth() + 1) + \"-\" + pad(h.getDate())",
+          "    + \"T\" + pad(h.getHours()) + \":\" + pad(h.getMinutes()) + \":\" + pad(h.getSeconds()));",
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8089"
+    },
+    {
+      "key": "jwtSecret",
+      "value": "DeliveryGo-Ops-Secret-Key-Demo-2026-Must-Be-Long-Enough"
+    },
+    {
+      "key": "apiKeyPedidos",
+      "value": "clave-demo-pedidos-2026"
+    },
+    {
+      "key": "apiKeyPagos",
+      "value": "clave-demo-pagos-2026"
+    },
+    {
+      "key": "apiKeyLogistica",
+      "value": "clave-demo-logistica-2026"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Disponibilidad",
+      "description": "Commit del 17/11: endpoint de disponibilidad.",
+      "item": [
+        {
+          "name": "GET /status (público, sin token)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "status"
+              ]
+            },
+            "description": "Health check. No necesita autenticación y no consulta la base ni otros módulos.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"status UP\", () => pm.expect(pm.response.json().status).to.eql(\"UP\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CU-01 Calificar comercio",
+      "description": "Reglas RN-01, RN-02, RN-04, RN-07 y RN-08, más la seguridad de API-01. Orden de las validaciones: ver sección 10.8 de la guía.",
+      "item": [
+        {
+          "name": "Crear reseña de comercio (pedido 1) -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "DM-13: el usuario sale del JWT y el comercio del pedido, no del body. Si ya lo corriste, reiniciá la app (H2 en memoria).",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 1,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"usuarioId sale del token\", () => pm.expect(pm.response.json().usuarioId).to.eql(100));",
+                  "pm.test(\"objetivoId sale del pedido\", () => pm.expect(pm.response.json().objetivoId).to.eql(10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-02 Repetir la misma reseña -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 1,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code DUPLICATE_REVIEW\", () => pm.expect(pm.response.json().code).to.eql(\"DUPLICATE_REVIEW\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-01 Pedido en camino (3) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 3,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));",
+                  "pm.test(\"code BUSINESS_RULE_VIOLATION\", () => pm.expect(pm.response.json().code).to.eql(\"BUSINESS_RULE_VIOLATION\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-01 Pedido cancelado (8) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 8,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-01 Pedido inexistente (999) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 999,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-07 Pedido 2 es del usuario 100, pide el 200 -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "El pedido pertenece a otro usuario. Cambiar el sub del token cambia quién es el usuario.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente200}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 2,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-08 Comercio inactivo (pedido 5) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 5,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-08 Usuario inactivo (pedido 6, token del usuario 300) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente300}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 6,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-04 Puntuación 9 (pedido 4, usuario 200) -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente200}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 4,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 9,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code INVALID_RATING\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_RATING\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reseña válida del usuario 200 (pedido 4) -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente200}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 4,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 3,\n  \"comentario\": \"Podría mejorar\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validación: pedidoId 0 -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 0,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code INVALID_ORDER_ID\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_ORDER_ID\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validación: sin tipoObjetivo -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 1,\n  \"puntuacion\": 5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code INVALID_TARGET_TYPE\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_TARGET_TYPE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seguridad: sin token -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 1,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"code UNAUTHENTICATED\", () => pm.expect(pm.response.json().code).to.eql(\"UNAUTHENTICATED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seguridad: token vencido -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenVencido}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 1,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seguridad: rol ADMIN no puede reseñar -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 1,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code FORBIDDEN\", () => pm.expect(pm.response.json().code).to.eql(\"FORBIDDEN\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CU-02 Calificar repartidor",
+      "description": "",
+      "item": [
+        {
+          "name": "Crear reseña de repartidor (pedido 2) -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 2,\n  \"tipoObjetivo\": \"REPARTIDOR\",\n  \"puntuacion\": 4,\n  \"comentario\": \"Llegó a tiempo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"objetivoId es el repartidor del pedido\", () => pm.expect(pm.response.json().objetivoId).to.eql(20));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DM-02 Pedido 9: reseña del comercio -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "Una reseña por pedido Y tipo de objetivo: el mismo pedido se puede calificar dos veces, una por cada tipo.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 9,\n  \"tipoObjetivo\": \"COMERCIO\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DM-02 Pedido 9: reseña del repartidor -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 9,\n  \"tipoObjetivo\": \"REPARTIDOR\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Muy amable\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-08 Repartidor inactivo (pedido 7) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 7,\n  \"tipoObjetivo\": \"REPARTIDOR\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pedido sin repartidor (pedido 1, tipo REPARTIDOR) -> 422",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/reviews",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reviews"
+              ]
+            },
+            "description": "DM-13: el objetivo sale del pedido. El pedido 1 no tiene repartidor, así que no se lo puede calificar.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pedidoId\": 1,\n  \"tipoObjetivo\": \"REPARTIDOR\",\n  \"puntuacion\": 5,\n  \"comentario\": \"Buena atención\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CU-03 Promedio de un comercio",
+      "description": "",
+      "item": [
+        {
+          "name": "Rating del comercio 10 -> 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/merchants/10/rating",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "merchants",
+                "10",
+                "rating"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"tiene promedio y cantidad\", () => { const j = pm.response.json(); pm.expect(j.cantidadResenas).to.be.above(0); pm.expect(j.promedio).to.not.be.null; });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DM-12 Comercio sin reseñas (999) -> 200 con promedio null",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/merchants/999/rating",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "merchants",
+                "999",
+                "rating"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"sin reseñas\", () => { const j = pm.response.json(); pm.expect(j.promedio).to.be.null; pm.expect(j.cantidadResenas).to.eql(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seguridad: sin token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/merchants/10/rating",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "merchants",
+                "10",
+                "rating"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CU-04 Promedio de un repartidor",
+      "description": "",
+      "item": [
+        {
+          "name": "Rating del repartidor 20 -> 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/couriers/20/rating",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "couriers",
+                "20",
+                "rating"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"tiene reseñas\", () => pm.expect(pm.response.json().cantidadResenas).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DM-12 Repartidor sin reseñas (999) -> 200 con promedio null",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/couriers/999/rating",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "couriers",
+                "999",
+                "rating"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"promedio null\", () => pm.expect(pm.response.json().promedio).to.be.null);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CU-05 Tablero de indicadores",
+      "description": "",
+      "item": [
+        {
+          "name": "Tablero de hoy (ADMIN) -> 200 con 8 indicadores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "dashboard"
+              ]
+            },
+            "description": "Cada indicador informa su origen y su fórmula. Mostrar en clase: origen RESENAS_PROPIAS vs EVENTOS_RECIBIDOS.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"8 indicadores\", () => pm.expect(pm.response.json().metricas.length).to.eql(8));",
+                  "pm.test(\"ya no existe el campo parcial\", () => pm.expect(pm.response.json()).to.not.have.property(\"parcial\"));",
+                  "const m = (tipo) => pm.response.json().metricas.find(x => x.tipoMetrica === tipo);",
+                  "pm.test(\"CANTIDAD_RESENAS (origen RESENAS_PROPIAS)\", () => { pm.expect(m(\"CANTIDAD_RESENAS\")).to.exist; pm.expect(m(\"CANTIDAD_RESENAS\").origen).to.eql(\"RESENAS_PROPIAS\"); pm.expect(m(\"CANTIDAD_RESENAS\").formula).to.be.a(\"string\"); });",
+                  "pm.test(\"PROMEDIO_CALIFICACION (origen RESENAS_PROPIAS)\", () => { pm.expect(m(\"PROMEDIO_CALIFICACION\")).to.exist; pm.expect(m(\"PROMEDIO_CALIFICACION\").origen).to.eql(\"RESENAS_PROPIAS\"); pm.expect(m(\"PROMEDIO_CALIFICACION\").formula).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tablero de un período -> 200",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/dashboard?periodoDesde={{fechaHoy}}&periodoHasta={{fechaHoy}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "dashboard"
+              ],
+              "query": [
+                {
+                  "key": "periodoDesde",
+                  "value": "{{fechaHoy}}"
+                },
+                {
+                  "key": "periodoHasta",
+                  "value": "{{fechaHoy}}"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CU-05 Período invertido -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/dashboard?periodoDesde={{fechaHoy}}&periodoHasta=2020-01-01",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "dashboard"
+              ],
+              "query": [
+                {
+                  "key": "periodoDesde",
+                  "value": "{{fechaHoy}}"
+                },
+                {
+                  "key": "periodoHasta",
+                  "value": "2020-01-01"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code INVALID_PERIOD\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_PERIOD\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seguridad: rol CLIENTE -> 403",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "dashboard"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code FORBIDDEN\", () => pm.expect(pm.response.json().code).to.eql(\"FORBIDDEN\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seguridad: sin token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "dashboard"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CU-06 Registrar eventos (X-Api-Key)",
+      "description": "Los módulos se identifican con X-Api-Key (una clave por módulo), no con JWT. Los eventos de esta carpeta alimentan CU-08, CU-09 y CU-10.",
+      "item": [
+        {
+          "name": "Pedido ENTREGADO (clave de Pedidos) -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKeyPedidos}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoEvento\": \"PEDIDO_ESTADO_CAMBIADO\",\n  \"moduloOrigen\": \"PEDIDOS\",\n  \"entidadId\": 4,\n  \"fechaEvento\": \"{{fechaEvento}}\",\n  \"detalle\": \"ENTREGADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pedido CANCELADO (clave de Pedidos) -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKeyPedidos}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoEvento\": \"PEDIDO_ESTADO_CAMBIADO\",\n  \"moduloOrigen\": \"PEDIDOS\",\n  \"entidadId\": 8,\n  \"fechaEvento\": \"{{fechaEvento}}\",\n  \"detalle\": \"CANCELADO\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pago aprobado (clave de Pagos) -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKeyPagos}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoEvento\": \"PAGO_APROBADO\",\n  \"moduloOrigen\": \"PAGOS\",\n  \"entidadId\": 6,\n  \"fechaEvento\": \"{{fechaEvento}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pago rechazado (clave de Pagos) -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKeyPagos}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoEvento\": \"PAGO_RECHAZADO\",\n  \"moduloOrigen\": \"PAGOS\",\n  \"entidadId\": 7,\n  \"fechaEvento\": \"{{fechaEvento}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Entrega completada, 30 minutos (clave de Logística) -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKeyLogistica}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoEvento\": \"ENTREGA_COMPLETADA\",\n  \"moduloOrigen\": \"LOGISTICA\",\n  \"entidadId\": 4,\n  \"fechaEvento\": \"{{fechaEvento}}\",\n  \"valor\": 30\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seguridad: sin clave -> 401",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoEvento\": \"PAGO_APROBADO\",\n  \"moduloOrigen\": \"PAGOS\",\n  \"entidadId\": 6,\n  \"fechaEvento\": \"{{fechaEvento}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"code UNAUTHENTICATED\", () => pm.expect(pm.response.json().code).to.eql(\"UNAUTHENTICATED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seguridad: clave de otro módulo (Pedidos enviando PAGOS) -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKeyPedidos}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoEvento\": \"PAGO_APROBADO\",\n  \"moduloOrigen\": \"PAGOS\",\n  \"entidadId\": 6,\n  \"fechaEvento\": \"{{fechaEvento}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code MODULE_ORIGIN_MISMATCH\", () => pm.expect(pm.response.json().code).to.eql(\"MODULE_ORIGIN_MISMATCH\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seguridad: un JWT ADMIN no reemplaza la clave -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoEvento\": \"PAGO_APROBADO\",\n  \"moduloOrigen\": \"PAGOS\",\n  \"entidadId\": 6,\n  \"fechaEvento\": \"{{fechaEvento}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-09 entidadId 0 -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKeyPagos}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoEvento\": \"PAGO_APROBADO\",\n  \"moduloOrigen\": \"PAGOS\",\n  \"entidadId\": 0,\n  \"fechaEvento\": \"{{fechaEvento}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code INVALID_ANALYTICS_EVENT\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_ANALYTICS_EVENT\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-09 fecha futura -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKeyPagos}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tipoEvento\": \"PAGO_APROBADO\",\n  \"moduloOrigen\": \"PAGOS\",\n  \"entidadId\": 6,\n  \"fechaEvento\": \"2099-01-01T10:00:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code INVALID_ANALYTICS_EVENT\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_ANALYTICS_EVENT\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RN-09 campos obligatorios faltantes -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Api-Key",
+                "value": "{{apiKeyPagos}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "events"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"moduloOrigen\": \"PAGOS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code INVALID_ANALYTICS_EVENT\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_ANALYTICS_EVENT\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CU-07 Métricas guardadas",
+      "description": "CU-07 solo lee los snapshots ya guardados: no recalcula ni consulta a otros módulos.",
+      "item": [
+        {
+          "name": "Métricas de hoy (ADMIN) -> 200 con snapshots",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/metrics?periodoDesde={{fechaHoy}}&periodoHasta={{fechaHoy}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "metrics"
+              ],
+              "query": [
+                {
+                  "key": "periodoDesde",
+                  "value": "{{fechaHoy}}"
+                },
+                {
+                  "key": "periodoHasta",
+                  "value": "{{fechaHoy}}"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"hay snapshots\", () => pm.expect(pm.response.json().length).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Período sin snapshots (2020) -> 200 con lista vacía",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/metrics?periodoDesde=2020-01-01&periodoHasta=2020-01-31",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "metrics"
+              ],
+              "query": [
+                {
+                  "key": "periodoDesde",
+                  "value": "2020-01-01"
+                },
+                {
+                  "key": "periodoHasta",
+                  "value": "2020-01-31"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"lista vacía\", () => pm.expect(pm.response.json()).to.eql([]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sin fechas -> 400",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "metrics"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Seguridad: rol CLIENTE -> 403",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/metrics?periodoDesde={{fechaHoy}}&periodoHasta={{fechaHoy}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "metrics"
+              ],
+              "query": [
+                {
+                  "key": "periodoDesde",
+                  "value": "{{fechaHoy}}"
+                },
+                {
+                  "key": "periodoHasta",
+                  "value": "{{fechaHoy}}"
+                }
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenCliente100}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "CU-08, CU-09 y CU-10 en el tablero",
+      "description": "Los tres salen del mismo endpoint. Correr después de CU-06 para ver cómo cambian los valores.",
+      "item": [
+        {
+          "name": "CU-08 Pedidos entregados y cancelados",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "dashboard"
+              ]
+            },
+            "description": "Se cuentan los eventos PEDIDO_ESTADO_CAMBIADO con detalle ENTREGADO y CANCELADO. Con los datos demo y los eventos de CU-06: entregados 4, cancelados 2.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const m = (tipo) => pm.response.json().metricas.find(x => x.tipoMetrica === tipo);",
+                  "pm.test(\"PEDIDOS_ENTREGADOS (origen EVENTOS_RECIBIDOS)\", () => { pm.expect(m(\"PEDIDOS_ENTREGADOS\")).to.exist; pm.expect(m(\"PEDIDOS_ENTREGADOS\").origen).to.eql(\"EVENTOS_RECIBIDOS\"); pm.expect(m(\"PEDIDOS_ENTREGADOS\").formula).to.be.a(\"string\"); });",
+                  "pm.test(\"CANTIDAD_PEDIDOS_CANCELADOS (origen EVENTOS_RECIBIDOS)\", () => { pm.expect(m(\"CANTIDAD_PEDIDOS_CANCELADOS\")).to.exist; pm.expect(m(\"CANTIDAD_PEDIDOS_CANCELADOS\").origen).to.eql(\"EVENTOS_RECIBIDOS\"); pm.expect(m(\"CANTIDAD_PEDIDOS_CANCELADOS\").formula).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CU-09 Pagos aprobados y rechazados",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "dashboard"
+              ]
+            },
+            "description": "Con los datos demo y los eventos de CU-06: aprobados 5, rechazados 2.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const m = (tipo) => pm.response.json().metricas.find(x => x.tipoMetrica === tipo);",
+                  "pm.test(\"CANTIDAD_PAGOS_APROBADOS (origen EVENTOS_RECIBIDOS)\", () => { pm.expect(m(\"CANTIDAD_PAGOS_APROBADOS\")).to.exist; pm.expect(m(\"CANTIDAD_PAGOS_APROBADOS\").origen).to.eql(\"EVENTOS_RECIBIDOS\"); pm.expect(m(\"CANTIDAD_PAGOS_APROBADOS\").formula).to.be.a(\"string\"); });",
+                  "pm.test(\"CANTIDAD_PAGOS_RECHAZADOS (origen EVENTOS_RECIBIDOS)\", () => { pm.expect(m(\"CANTIDAD_PAGOS_RECHAZADOS\")).to.exist; pm.expect(m(\"CANTIDAD_PAGOS_RECHAZADOS\").origen).to.eql(\"EVENTOS_RECIBIDOS\"); pm.expect(m(\"CANTIDAD_PAGOS_RECHAZADOS\").formula).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CU-10 Entregas y tiempo promedio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/analytics/dashboard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "analytics",
+                "dashboard"
+              ]
+            },
+            "description": "Promedio de los minutos de los eventos ENTREGA_COMPLETADA. Con los datos demo y los eventos de CU-06: 4 entregas, promedio 33.75.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenAdmin}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+                  "const m = (tipo) => pm.response.json().metricas.find(x => x.tipoMetrica === tipo);",
+                  "pm.test(\"CANTIDAD_ENTREGAS (origen EVENTOS_RECIBIDOS)\", () => { pm.expect(m(\"CANTIDAD_ENTREGAS\")).to.exist; pm.expect(m(\"CANTIDAD_ENTREGAS\").origen).to.eql(\"EVENTOS_RECIBIDOS\"); pm.expect(m(\"CANTIDAD_ENTREGAS\").formula).to.be.a(\"string\"); });",
+                  "pm.test(\"TIEMPO_PROMEDIO_ENTREGA (origen EVENTOS_RECIBIDOS)\", () => { pm.expect(m(\"TIEMPO_PROMEDIO_ENTREGA\")).to.exist; pm.expect(m(\"TIEMPO_PROMEDIO_ENTREGA\").origen).to.eql(\"EVENTOS_RECIBIDOS\"); pm.expect(m(\"TIEMPO_PROMEDIO_ENTREGA\").formula).to.be.a(\"string\"); });"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

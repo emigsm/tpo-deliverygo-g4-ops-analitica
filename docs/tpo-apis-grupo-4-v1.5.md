@@ -26,7 +26,7 @@
 | 1.2 | 24/10/2026 | 3,4,5,10 | Se agregan RN-07 y RN-08 con sus excepciones. | Faltantes en los flujos alternativos de CU-01/CU-02 al implementar ReviewService |
 | 1.3 | 15/11/2026 | 1, 3, 4, 5, 6, 10, 11, 12, 13 | Sincronización con la implementación: CU-06 a CU-09 implementados (API-05, API-06, SRV-04 a SRV-07, REP-06 a REP-09, DTO-11/DTO-12, RN-09, ENT-03); CU-10 no implementado. Corrección de nombres sin ñ, firma de generarTablero, fallback DM-09 al snapshot del período exacto, INT-01 y DTO-05 sin CU-05, comentario máximo 1000 caracteres, pedido inexistente, máximo 2 reseñas por pedido, REP-04 y excepciones. | Alineación con el código final de la entrega. |
 | 1.4 | 17/11/2026 | 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 | Subsección 4.1 Casos de uso de Evolución; tabla de atributos de ENT-03 EventoAnalitico y su relación con Métrica; tipos de métrica de ENT-02; DM-14 a DM-18; encabezados SEC-06 a SEC-10 (diagramas pendientes); RN-09 asociada a CU-08 a CU-10; actores y trazabilidad del resumen ejecutivo (Sección 2\) y de la Sección 10 extendidos a CU-06 a CU-10. Revisión integral de trazabilidad: SEC-06 a SEC-10 en la matriz (figuraban como "No aplica"); RN-03, RN-06 y RN-09 con sus CU, SRV y ENT; REP-03 a REP-07 con sus CU; REP-05 en CU-10 / SRV-08; API-04, DTO-04 y DTO-10 con sus CU. | Completar la etapa de Evolución prevista en la hoja de ruta del TPO y garantizar trazabilidad total entre CU, RN, ENT, SEC, SRV, REP, API, DTO e INT. |
-| 1.5 | 23/11/2026 | 5, 7, 9, 12.2 | Seguridad: la identidad sale del JWT emitido por Usuarios (HS256, claims sub y role); se elimina el header temporal X-Usuario-Id y HTTP Basic. Se definen roles por ruta: POST /reviews solo CLIENTE; API-04 y API-06 solo ADMIN. Los 401 y 403 de seguridad responden con ErrorResponseDTO. RN-09 suma dos validaciones: entidadId positivo y fechaEvento no futura (400 INVALID_ANALYTICS_EVENT). API-05 se autentica con X-Api-Key por módulo emisor. Se agrega DM-19. | Devolución de la nota de seguimiento: la identidad debe ser validada y se debe controlar quién registra reseñas y consulta métricas. |
+| 1.5 | 23/11/2026 | 4, 5, 7, 9, 12, 13 | Seguridad: la identidad sale del JWT emitido por Usuarios (HS256, claims sub y role); se elimina el header temporal X-Usuario-Id y HTTP Basic. Se definen roles por ruta: POST /reviews solo CLIENTE; API-04 y API-06 solo ADMIN. Los 401 y 403 de seguridad responden con ErrorResponseDTO. RN-09 suma dos validaciones: entidadId positivo y fechaEvento no futura (400 INVALID_ANALYTICS_EVENT). API-05 se autentica con X-Api-Key por módulo emisor. INT-03 pasa a GET /api/v1/comercios/{id}, la ruta del contrato de Catálogo (DM-20). PEDIDOS_ENTREGADOS se calcula desde eventos: se retiran INT-05, DTO-09 y el campo parcial, y DTO-10 suma origen y formula (DM-21). Se agregan 12.4 y 12.5. Se agrega DM-19, DM-20 y DM-21. | Devolución de la nota de seguimiento: la identidad debe ser validada y se debe controlar quién registra reseñas y consulta métricas. |
 
 ## **1\. Objetivo y alcance la primera etapa**
 
@@ -62,7 +62,7 @@ Nuestro módulo contiene dos áreas relacionadas: la generación de opiniones/ca
 | :---- | :---- | :---- |
 | Problema que resuelve | Creación del módulo “Opiniones y analítica”. | CU-01 a CU-05; CU-06 a CU-10 (Evolución) |
 | Responsabilidad | Gestiona el ciclo de vida de las reseñas de comercios y repartidores (calificar comercio, calificar repartidor, consultar promedio de calificación de un comercio, consultar promedio y calificación de un repartidor), generar tablero de métricas operativas a partir de los datos consumidos de otros módulos, validar calificaciones sobre pedidos entregados, permitir solo una calificación por pedido entregado. Evolución: registrar los eventos analíticos emitidos por otros módulos, consultar métricas por período y completar el tablero con pedidos cancelados y pagos aprobados/rechazados (entregas: previsto, CU-10 no implementado). | ENT-01, ENT-02, RN-01 a RN-06, SRV-01 a SRV-03; ENT-03, RN-07 a RN-09, SRV-04 a SRV-08 |
-| Fuera de alcance | Creación de comercios, creación de repartidores, modificación de datos de otros módulos.   | INT-01 a INT-05 |
+| Fuera de alcance | Creación de comercios, creación de repartidores, modificación de datos de otros módulos.   | INT-01 a INT-04 |
 | Actores | Cliente (crea reseñas, consulta promedio de calificaciones de comercios), Repartidor (obtiene reseñas y consulta su propio promedio de calificaciones), Comercio (Obtiene reseñas y consulta su propio promedio de calificaciones), Analista (consulta el tablero), Portal Web (consume las cuatro APIs en nombre de esos actores). Evolución: el Analista consulta además las métricas por período y las métricas de pedidos, pagos y entregas del tablero; el Portal Web consume las APIs en nombre de esos actores, excepto en CU-06; el Módulo emisor (otro servicio del ecosistema: Pedidos, Pagos o Logística) registra eventos analíticos sin pasar por el Portal. | Cliente: CU-01, CU-02, CU-03; Analista: CU-05; Portal: TodosRepartidor: CU-04Comercio: CU-03Evolución: Analista: CU-07, CU-08, CU-09, CU-10 (previsto); Portal: todos excepto CU-06; Módulo emisor: CU-06 |
 | Resultado esperado | Tablero de métricas operativas disponible para el negocio. Por cada pedido entregado se puede registrar hasta 1 reseña de comercio y hasta 1 de repartidor (máximo 2 por pedido). Con la Evolución, los módulos emisores registran eventos analíticos y el Analista consulta métricas por período, incluyendo pedidos cancelados y pagos. | CU-01 a CU-05, API-01 a API-04; CU-06 a CU-10, API-05, API-06 |
 
@@ -74,12 +74,12 @@ Nuestro módulo contiene dos áreas relacionadas: la generación de opiniones/ca
 | CU-02 | RN-01, RN-02, RN-04, RN-05, RN-07, RN-08 | ENT-01 / REL-01, REL-02, REL-04 | SEC-02 | SRV-01 | REP-01, REP-02 | API-01 | DTO-01, DTO-02, DTO-05, DTO-06, DTO-08 | INT-01, INT-02, INT-04 |
 | CU-03 | No aplica (ver nota) | ENT-01 / REL-03 | SEC-03 | SRV-02 | REP-03 | API-02 | DTO-03 | No aplica |
 | CU-04 | No aplica (ver nota) | ENT-01 / REL-04 | SEC-04 | SRV-02 | REP-03 | API-03 | DTO-03 | No aplica |
-| CU-05 | RN-03, RN-06 | ENT-01, ENT-02 | SEC-05 | SRV-03 | REP-04, REP-05, REP-09 | API-04 | DTO-04 | INT-05 |
+| CU-05 | RN-03, RN-06 | ENT-01, ENT-02 | SEC-05 | SRV-03 | REP-04, REP-05, REP-09 | API-04 | DTO-04 | No aplica |
 | CU-06 | RN-09 | ENT-03 | SEC-06 (pendiente) | SRV-04 | REP-06 | API-05 | DTO-11, DTO-12 | No aplica |
 | CU-07 | RN-03 | ENT-02 | SEC-07 (pendiente) | SRV-05 | REP-08 | API-06 | DTO-10 | No aplica |
 | CU-08 | RN-03, RN-06, RN-09 | ENT-03 / ENT-02 | SEC-08 (pendiente) | SRV-06 | REP-07, REP-04, REP-05 | API-04 | DTO-04, DTO-10 | No aplica |
 | CU-09 | RN-03, RN-06, RN-09 | ENT-03 / ENT-02 | SEC-09 (pendiente) | SRV-07 | REP-07, REP-04, REP-05 | API-04 | DTO-04, DTO-10 | No aplica |
-| CU-10 | RN-03, RN-06, RN-09 | ENT-03 / ENT-02 | SEC-10 (pendiente) | SRV-08 (previsto) | REP-07, REP-04, REP-05 | API-04 | DTO-04, DTO-10 | No aplica |
+| CU-10 | RN-03, RN-06, RN-09 | ENT-03 / ENT-02 | SEC-10 (pendiente) | SRV-08 | REP-07, REP-04, REP-05 | API-04 | DTO-04, DTO-10 | No aplica |
 
 ##  **4\. Casos de uso CORE**
 
@@ -168,8 +168,8 @@ Nuestro módulo contiene dos áreas relacionadas: la generación de opiniones/ca
 | Actor principal | Analista (también accesible por Administrador a través del Portal) |
 | Objetivo | Consolidar métricas operativas propias y datos derivados de pedidos entregados y calificados. |
 | Precondiciones | Ninguna. |
-| Flujo principal | 1\. El Portal pide “GET /api/v1/analytics/dashboard”.2\. “AnalyticsService.generarTablero(desde, hasta)” agrega reseñas creadas en el período (REP-09) y el conteo agregado de pedidos entregados, obtenido mediante un endpoint de estadísticas de Pedidos (INT-05) en lugar de la consulta puntual de INT-01 (corrección sobre DM-08 a partir de la devolución).3\. Persiste o actualiza snapshots de “Métrica” (REP-04, RN-03, RN-06). 4\. Devuelve “200” con el tablero. |
-| Flujos alternativos | Si Pedidos no responde, se devuelve el snapshot persistido del período exacto (REP-05) con “parcial: true” (DM-09); si no existe, responde 503\. |
+| Flujo principal | 1\. El Portal pide “GET /api/v1/analytics/dashboard”.2\. “AnalyticsService.generarTablero(desde, hasta)” cuenta las reseñas creadas en el período (REP-09) y los eventos del período (REP-07): pedidos entregados y cancelados, pagos aprobados y rechazados, y entregas con su tiempo promedio (DM-21).3\. Persiste o actualiza snapshots de “Métrica” (REP-04, RN-03, RN-06). 4\. Devuelve “200” con el tablero; cada indicador informa su origen y su fórmula. |
+| Flujos alternativos | Sin reseñas o sin tiempos de entrega, el promedio es null y no se persiste. Sin eventos, los conteos valen 0. El tablero no consulta a otros módulos, así que no falla si alguno está caído (DM-21). |
 | Resultado | “DashboardResponse” con las métricas agregadas. |
 | RN asociadas | RN-03, RN-06 |
 | Entidades / relaciones | ENT-01, ENT-02 |
@@ -413,12 +413,14 @@ Impacta en: INT-03, INT-04.
 **DM-08: CU-05 requiere un endpoint agregado de Pedidos (INT-05: GET /orders/stats) en vez de reutilizar INT-01 (corrección post-devolución).**   
 Alternativa descartada: Reutilizar GET /orders/{id} trayendo los pedidos uno por uno, o integrar directamente con Pagos y Logística.  
 Motivo: GET /orders/{id} es una consulta puntual, no agregable. Pagos y Logística tampoco publican endpoints agregados; esa integración pertenece a CU-09/CU-10 (Evolución).  
-Impacta en: SRV-03, INT-05, CU-05.
+Impacta en: SRV-03, INT-05, CU-05.  
+Estado: reemplazada por DM-21.
 
 **DM-09: generarTablero(desde, hasta) recurre al snapshot del período exacto si Pedidos no responde; falla con 503 solo si ese snapshot no existe.**  
 **Alternativa descartada: Propagar 503 igual que en CU-01/02.**  
 **Motivo: Es una lectura, no una escritura transaccional.**  
-**Impacta en: SRV-03, REP-04.**
+**Impacta en: SRV-03, REP-04.**  
+Estado: reemplazada por DM-21.
 
 **DM-10: Separar ReviewService y AnalyticsService.**  
 Alternativa descartada: Un único servicio para todo el módulo.  
@@ -452,7 +454,7 @@ Impacta en: ENT-03, CU-08, CU-09, CU-10.
 
 **DM-16: generarTablero() y sus extensiones (SRV-06/07/08) reciben periodoDesde/periodoHasta como parámetros opcionales, con "hoy" como valor por defecto.**  
 Alternativa descartada: Período siempre fijo e implícito a "hoy".  
-Motivo: Permite calcular (o recalcular) el snapshot de un período puntual bajo demanda, que es lo que CU-07 necesita poder leer; reutiliza el parámetro de período que INT-05 ya acepta.  
+Motivo: Permite calcular (o recalcular) el snapshot de un período puntual bajo demanda, que es lo que CU-07 necesita poder leer.  
 Impacta en: SRV-03, SRV-06, SRV-07, SRV-08, CU-05, CU-07, CU-08, CU-09, CU-10.
 
 **DM-17: CU-08 trackea pedidos cancelados mediante un valor específico del enum TipoMetrica (CANTIDAD\_PEDIDOS\_CANCELADOS), no un campo "detalle" en Métrica.**  
@@ -469,6 +471,16 @@ Impacta en: API-04, SRV-03, SRV-06, SRV-07, SRV-08, CU-05, CU-08, CU-09, CU-10.
 Alternativa descartada: Header temporal X-Usuario-Id con HTTP Basic; emitir tokens propios en este módulo; firma asimétrica RS256 (en el contrato de Usuarios es una propuesta no confirmada entre equipos).  
 Motivo: El header lo escribe el cliente y permite suplantar a cualquier usuario. Con el JWT, el usuarioId (claim "sub") no se puede alterar sin invalidar la firma. Este módulo solo valida el token (firma, vencimiento y que "sub" sea numérico); no lo emite. Sin token válido responde 401; con token válido pero rol incorrecto, 403. Reglas: POST /api/v1/reviews solo CLIENTE; GET /api/v1/analytics/dashboard y /metrics solo ADMIN; POST /api/v1/analytics/events solo módulos emisores con X-Api-Key (el contrato de Usuarios indica que los módulos usan API Key y que un ADMIN no es un módulo); GET /api/v1/status público; el resto, cualquier token válido.  
 Impacta en: SecurityConfig, JwtAuthFilter, JwtUtil, OpinionesController, API-01, API-04, API-06, RN-07.
+
+**DM-20: INT-03 consume GET /api/v1/comercios/{id}, la ruta publicada por el módulo Catálogo.**  
+Alternativa descartada: GET /api/v1/merchants/{id} (la propuesta de DM-07) y GET /api/v1/merchant/{id} (la que usaba ComercioHttpClient).  
+Motivo: Catálogo publicó su contrato (docs/contratos-equipos/openapi-catalogo.yaml) con GET /api/v1/comercios/{id}: endpoint público, sin token, que devuelve id, cuit, razonSocial y estado, incluso de comercios INACTIVOS, y 404 si el comercio no existe. Este módulo respeta ese contrato y traduce estado = ACTIVO al booleano activo de ComercioDTO (RN-08). Reemplaza la parte de DM-07 que proponía /merchants/{id}; la propuesta de /couriers/{id} para Logística sigue vigente.  
+Impacta en: INT-03, ComercioHttpClient, DTO-07, RN-08.
+
+**DM-21: PEDIDOS_ENTREGADOS se calcula desde los eventos PEDIDO_ESTADO_CAMBIADO con detalle ENTREGADO. Se retiran INT-05 y el modo parcial.**  
+Alternativa descartada: GET /api/v1/orders/stats de Pedidos (INT-05, DM-08) con respaldo en el snapshot del período exacto (DM-09).  
+Motivo: El contrato publicado por Pedidos solo tiene GET /api/v1/orders/{id}; el endpoint de estadísticas nunca existió y dependía de una propuesta sin confirmar. Con los eventos que Pedidos ya envía por API-05, el tablero usa solo datos propios o recibidos, no depende de que otro módulo esté disponible y cada indicador se puede explicar (origen y fórmula en 12.4). Desaparecen DTO-09 y el campo parcial de DTO-04. DTO-10 suma origen (RESENAS_PROPIAS o EVENTOS_RECIBIDOS) y formula, tomados de TipoMetrica.  
+Impacta en: SRV-03, SRV-06, DTO-04, DTO-09, DTO-10, TipoMetrica, CU-05, CU-08. Reemplaza a DM-08 y DM-09.
 
 ## **8\. Diagramas de secuencia**
 
@@ -535,9 +547,9 @@ ReviewService (CU-01 a CU-04) y AnalyticsService (CU-05) están separados por su
 | services | ReviewService, AnalyticsService | SRV-01 a SRV-03 / RN-01 a RN-06; SRV-04 a SRV-08 / RN-07 a RN-09 |
 | repository | ResenaRepository, MetricaRepository, EventoAnaliticoRepository | REP-01 a REP-04 / ENT-01, ENT-02; REP-05 a REP-09 / ENT-03 |
 | model | Reseña, Métrica, EventoAnalitico | ENT-01, ENT-02, ENT-03 / REL-01 a REL-04 |
-| dto | ResenaRequest, ResenaResponse, RatingResponse, DashboardResponse, MetricaResumen, PedidoDTO, UsuarioDTO, ComercioDTO, RepartidorDTO, OrdersStatsDTO, ErrorResponseDTO, EventoAnaliticoRequest, EventoAnaliticoResponse | DTO-01 a DTO-10 / API-01 a API-04; DTO-11, DTO-12 / API-05, API-06 |
+| dto | ResenaRequest, ResenaResponse, RatingResponse, DashboardResponse, MetricaResumen, PedidoDTO, UsuarioDTO, ComercioDTO, RepartidorDTO, ErrorResponseDTO, EventoAnaliticoRequest, EventoAnaliticoResponse | DTO-01 a DTO-10 / API-01 a API-04; DTO-11, DTO-12 / API-05, API-06 |
 | mapper | ResenaMapper, MetricaMapper, EventoAnaliticoMapper | ENT-01, ENT-02 / DTO-01 a DTO-04; ENT-03 / DTO-11, DTO-12 |
-| client | PedidosClient, UsuariosClient, ComercioClient, LogisticaClient | INT-01 a INT-05 |
+| client | PedidosClient, UsuariosClient, ComercioClient, LogisticaClient | INT-01 a INT-04 |
 | exception | GlobalExceptionHandler, OrderNotDeliveredException, OrderNotOwnedException, DuplicateReviewException, InvalidRatingException, InvalidPeriodException, InvalidOrderIdException, InvalidTargetTypeException, InvalidCommentException, InvalidAnalyticsEventException, ExternalEntityInvalidException, ExternalServiceUnavailableException | RN-01, RN-02, RN-04, RN-07, RN-08, RN-09 (InvalidAnalyticsEventException) |
 | config | SecurityConfig (JWT), IntegrationClientsConfig (URLs/ definir timeouts por client) | Transversal |
 
@@ -567,12 +579,12 @@ ReviewService (CU-01 a CU-04) y AnalyticsService (CU-05) están separados por su
 | :---- | :---- | :---- | :---- | :---- | :---- |
 | SRV-01 | crearResena(reseñaRequest, usuarioIdAutenticado) | Coordinar validaciones externas, aplicar reglas y persistir la reseña. | CU-01, CU-02 | RN-01, RN-02, RN-04 | REP-01, REP-02 / INT-01, INT-02, INT-03, INT-04 |
 | SRV-02 | obtenerPromedio(tipoObjetivo, objetivoId) | Agregar reseñas propias y calcular el promedio on-demand. | CU-03, CU-04 | \- | REP-03 / \- |
-| SRV-03 | generarTablero(desde, hasta) | Consolidar métricas de reseñas, el conteo de pedidos entregados (INT-05) y, en el mismo tablero, pedidos cancelados y pagos (CU-08, CU-09). Parámetros opcionales, con "hoy" como valor por defecto (DM-16). | CU-05 | RN-03, RN-06 | REP-04, REP-05, REP-09 / INT-05 |
+| SRV-03 | generarTablero(desde, hasta) | Consolidar métricas de reseñas y, a partir de eventos, pedidos entregados y cancelados, pagos y entregas (CU-08, CU-09, CU-10; DM-21). Parámetros opcionales, con "hoy" como valor por defecto (DM-16). | CU-05 | RN-03, RN-06 | REP-04, REP-05, REP-09 / INT-05 |
 | SRV-04 | registrarEvento(request) | Validar y persistir un evento analítico (CU-06). | CU-06 | RN-09 | REP-06 / \- |
 | SRV-05 | consultarMetricasPorPeriodo(periodoDesde, periodoHasta) | Leer snapshots guardados contenidos en el período; no recalcula (CU-07). | CU-07 | RN-03 | REP-08 / \- |
-| SRV-06 | analizarPedidosCancelados(periodoDesde, periodoHasta) | Contar eventos de cambio a CANCELADO y guardar el snapshot (CU-08). | CU-08 | RN-03, RN-06, RN-09 | REP-07, REP-04, REP-05 / \- |
+| SRV-06 | analizarPedidosCancelados(periodoDesde, periodoHasta) | Contar eventos de cambio de estado a ENTREGADO y a CANCELADO y guardar cada snapshot (CU-08; DM-21). | CU-08 | RN-03, RN-06, RN-09 | REP-07, REP-04, REP-05 / \- |
 | SRV-07 | analizarPagos(periodoDesde, periodoHasta) | Contar pagos aprobados y rechazados y guardar snapshots (CU-09). | CU-09 | RN-03, RN-06, RN-09 | REP-07, REP-04, REP-05 / \- |
-| SRV-08 | analizarEntregas(periodoDesde, periodoHasta) (previsto) | Contar entregas completadas y promediar tiempos (CU-10). No implementado. | CU-10 | RN-03, RN-06, RN-09 | REP-07, REP-04, REP-05 / \- |
+| SRV-08 | analizarEntregas(periodoDesde, periodoHasta) | Contar entregas completadas y promediar tiempos (CU-10). | CU-10 | RN-03, RN-06, RN-09 | REP-07, REP-04, REP-05 / \- |
 
 ###  **12.2 APIs propias**
 
@@ -595,9 +607,39 @@ ReviewService (CU-01 a CU-04) y AnalyticsService (CU-05) están separados por su
 | :---- | :---- | :---- | :---- | :---- | :---- | :---- | :---- |
 | INT-01 | Pedidos | GET | /api/v1/orders/{id} | Validar estado y obtener “usuarioId”, “comercioId”, “repartidorId” validados. | CU-01/02 | 200, 404, 503 | DTO-05 |
 | INT-02 | Usuarios | GET | /api/v1/users/{id} | Validar que el usuario existe y está activo. | CU-01/02 | 200, 404, 503 | DTO-06 |
-| INT-03 | Comercios | GET | /api/v1/merchants/{id} | Validar que el comercio existe. | CU-01 | 200, 404, 503 | DTO-07 |
+| INT-03 | Comercios | GET | /api/v1/comercios/{id} | Validar que el comercio existe y está activo (DM-20). | CU-01 | 200, 404, 503 | DTO-07 |
 | INT-04 | Logística | GET | /api/v1/couriers/{id} | Validar que el repartidor existe. | CU-02 | 200, 404, 503 | DTO-08 |
-| INT-05 | Pedidos | GET | /api/v1/orders/stats | Obtener el conteo agregado de pedidos entregados en un período, para alimentar el tablero (propuesto, a validar con Pedidos). | CU-05 | 200, 503 | DTO-09 |
+
+
+### **12.4 Indicadores del tablero: origen y fórmula**
+
+El período es inclusivo en ambos extremos. Si se omiten las fechas, valen hoy. Cada indicador informa su origen y su fórmula en DTO-10, tomados de TipoMetrica.
+
+| Indicador | Fuente | Origen | Fórmula | Sin datos |
+| :---- | :---- | :---- | :---- | :---- |
+| CANTIDAD\_RESENAS | RESENAS | RESENAS\_PROPIAS (REP-09) | Cantidad de reseñas creadas en el período | Vale 0 y se guarda |
+| PROMEDIO\_CALIFICACION | RESENAS | RESENAS\_PROPIAS (REP-09) | Suma de las puntuaciones dividida por la cantidad, con 2 decimales (HALF\_UP) | null, no se guarda |
+| PEDIDOS\_ENTREGADOS | PEDIDOS | EVENTOS\_RECIBIDOS (REP-07) | Cantidad de eventos PEDIDO\_ESTADO\_CAMBIADO con detalle ENTREGADO | Vale 0 y se guarda |
+| CANTIDAD\_PEDIDOS\_CANCELADOS | PEDIDOS | EVENTOS\_RECIBIDOS (REP-07) | Cantidad de eventos PEDIDO\_ESTADO\_CAMBIADO con detalle CANCELADO | Vale 0 y se guarda |
+| CANTIDAD\_PAGOS\_APROBADOS | PAGOS | EVENTOS\_RECIBIDOS (REP-07) | Cantidad de eventos PAGO\_APROBADO | Vale 0 y se guarda |
+| CANTIDAD\_PAGOS\_RECHAZADOS | PAGOS | EVENTOS\_RECIBIDOS (REP-07) | Cantidad de eventos PAGO\_RECHAZADO | Vale 0 y se guarda |
+| CANTIDAD\_ENTREGAS | LOGISTICA | EVENTOS\_RECIBIDOS (REP-07) | Cantidad de eventos ENTREGA\_COMPLETADA | Vale 0 y se guarda |
+| TIEMPO\_PROMEDIO\_ENTREGA | LOGISTICA | EVENTOS\_RECIBIDOS (REP-07) | Promedio del campo valor (minutos) de los eventos ENTREGA\_COMPLETADA que lo informan, con 2 decimales (HALF\_UP) | null, no se guarda |
+
+Los conteos valen 0 cuando no hubo nada. Los promedios son null cuando no hay observaciones, porque 0 sería un dato falso. Los null no se guardan porque Metrica.valor es NOT NULL. GET /analytics/dashboard recalcula y guarda los snapshots (RN-06); GET /analytics/metrics solo lee los ya guardados.
+
+### **12.5 Discrepancias entre los contratos de otros módulos**
+
+Los contratos publicados en docs/contratos-equipos no son compatibles con este módulo ni entre sí. Este módulo usa ids Long y su propio contrato para INT-01 e INT-04, y las brechas quedan a acordar con cada equipo. Los indicadores del tablero no dependen de ellas (DM-21).
+
+| Dato | Pedidos | Otro módulo | Consecuencia | A acordar con |
+| :---- | :---- | :---- | :---- | :---- |
+| Id del pedido | UUID | Logística: int64 (pedidoId) | No se puede saber qué repartidor entregó un pedido | Pedidos y Logística |
+| Id del comercio | UUID | Catálogo: int64 | No se puede validar en Catálogo el comercio de un pedido | Pedidos y Catálogo |
+| Dueño del pedido | clienteId UUID | Usuarios: id int64 | RN-07 no se puede comprobar contra el sub del JWT | Pedidos y Usuarios |
+| Repartidor del pedido | No figura en PedidoResponse | Logística: sin ningún GET de repartidor (INT-04) | No hay forma de validar un repartidor ni de reseñarlo con datos reales | Logística |
+| Identidad al consultar un pedido | GET /orders/{id} exige el header provisorio X-Cliente-Id (UUID) | Usuarios emite JWT con id int64 | La identidad no es compatible | Pedidos |
+| Id de entidad en eventos | Pedidos usa UUID | entidadId de este módulo es Long | Los eventos de Pedidos con id UUID no entran | Pedidos |
 
 ##  **13\. DTO e integridad del contrato**
 
@@ -606,13 +648,13 @@ ReviewService (CU-01 a CU-04) y AnalyticsService (CU-05) están separados por su
 | DTO-01 | ResenaRequest | Entrada | pedidoId, tipoObjetivo, puntuacion, comentario | API-01 / CU-01, CU-02 |
 | DTO-02 | ResenaResponse | Salida | id, usuarioId, pedidoId, tipoObjetivo, objetivoId, puntuacion, comentario, fechaCreacion | API-01 / CU-01, CU-02 |
 | DTO-03 | RatingResponse | Salida | objetivoId, tipoObjetivo, promedio, cantidadResenas | API-02, API-03 / CU-03, CU-04 |
-| DTO-04 | DashboardResponse | Salida | generadoEn, metricas\[\] (DTO-10), parcial | API-04 / CU-05, CU-08, CU-09, CU-10 (previsto) |
+| DTO-04 | DashboardResponse | Salida | generadoEn, metricas\[\] (DTO-10) | API-04 / CU-05, CU-08, CU-09, CU-10 (previsto) |
 | DTO-05 | PedidoDTO | Entrada | id, usuarioId, comercioId, repartidorId, estado | INT-01 / CU-01, CU-02 |
 | DTO-06 | UsuarioDTO | Entrada | id, activo | INT-02 / CU-01, CU-02 |
 | DTO-07 | ComercioDTO | Entrada | id, activo | INT-03 / CU-01 |
 | DTO-08 | RepartidorDTO | Entrada | id, activo | INT-04 / CU-02 |
-| DTO-09 | OrdersStatsDTO | Entrada | estado, periodoDesde, periodoHasta, cantidad | INT-05 / CU-05 |
-| DTO-10 | MetricaResumen | Salida | fuente, tipoMetrica, periodoDesde, periodoHasta, valor | API-04 / CU-05; API-06 / CU-07, CU-08, CU-09, CU-10 (previsto) |
+| DTO-09 | Retirado | - | Número sin uso: era OrdersStatsDTO (INT-05), reemplazado por DM-21 | - |
+| DTO-10 | MetricaResumen | Salida | fuente, tipoMetrica, origen, formula, periodoDesde, periodoHasta, valor | API-04 / CU-05; API-06 / CU-07, CU-08, CU-09, CU-10 (previsto) |
 | DTO-11 | EventoAnaliticoRequest | Entrada | tipoEvento, moduloOrigen, entidadId, valor (opcional), detalle (opcional), fechaEvento | API-05 / CU-06 |
 | DTO-12 | EventoAnaliticoResponse | Salida | id, tipoEvento, moduloOrigen, entidadId, valor, detalle, fechaEvento | API-05 / CU-06 |
 
