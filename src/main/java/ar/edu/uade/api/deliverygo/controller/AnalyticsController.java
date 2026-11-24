@@ -3,6 +3,7 @@ import java.time.Instant;
 import java.util.Map;
 import ar.edu.uade.api.deliverygo.controller.OpinionesController.SpringBootErrorSchema;
 import ar.edu.uade.api.deliverygo.dto.*;
+import ar.edu.uade.api.deliverygo.excepcion.ModuloOrigenNoAutorizadoException;
 import ar.edu.uade.api.deliverygo.services.AnalyticsService;
 
 import java.time.LocalDate;
@@ -15,42 +16,39 @@ import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Controller del módulo de analítica (/api/v1).
- *
- * Expone: registro de eventos (API-05, POST), métricas guardadas por período (API-06, GET),
- * tablero (CU-05, GET) y health check (GET /status).
- *
- * Decisión: no lleva {@code X-Usuario-Id}. El POST lo llaman otros módulos, y el tablero y las métricas no son por usuario.
- * Toda la lógica está en {@code AnalyticsService}; el controller solo traduce HTTP.
+ * - API-05: Permite registrar eventos
+ * - API-06: Permite obtener métricas almacenadas por período
+ * - CU-05: Disponibilizar tablero
+ * - GET /status: Health check para validar estado de la API de nuestro módulo.
  */
 @RestController
 @RequestMapping(value = "/api/v1", produces = "application/json")
 public class AnalyticsController {
-
     private final AnalyticsService analyticsService;
 
     public AnalyticsController(AnalyticsService analyticsService) {
         this.analyticsService = analyticsService;
     }
 
-
-
     // API-05 / CU-06 / SRV-04 / DTO-11 -> DTO-12.
     // Responde 201 con el evento creado (DTO-12).
-// Lo invocan otros módulos del ecosistema, no el Portal: no lleva X-Usuario-Id.
+    // Lo invocan otros módulos del ecosistema, no el Portal: se autentican con X-Api-Key, no con JWT.
     @Operation(summary = "Registrar evento analítico",
             description = "CU-06 y RN-09: persiste un evento operativo emitido por otro módulo " +
                     "(Pedidos, Pagos o Logística) como insumo de las métricas. tipoEvento, moduloOrigen, " +
                     "entidadId y fechaEvento son obligatorios; valor y detalle son opcionales. " +
-                    "Idempotencia, autenticación entre servicios y zona horaria de fechaEvento están " +
-                    "pendientes de acordar.")
+                    "Se autentica con el header X-Api-Key del módulo emisor, y moduloOrigen debe ser ese mismo módulo. " +
+                    "Idempotencia y zona horaria de fechaEvento están pendientes de acordar.")
+    @SecurityRequirement(name = "apiKeyAuth")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Evento registrado",
                     content = @Content(mediaType = "application/json",
@@ -58,11 +56,23 @@ public class AnalyticsController {
             @ApiResponse(responseCode = "400", description = "Faltan campos obligatorios (ErrorResponseDTO); " +
                     "body ilegible, enum inexistente o fecha mal formada (respuesta estándar de Spring)",
                     content = @Content(mediaType = "application/json",
-                            schema = @Schema(oneOf = {ErrorResponseDTO.class, SpringBootErrorSchema.class})))
+                            schema = @Schema(oneOf = {ErrorResponseDTO.class, SpringBootErrorSchema.class}))),
+            @ApiResponse(responseCode = "403", description = "La X-Api-Key es de otro módulo que el declarado en moduloOrigen, " +
+                    "o se usó un JWT en lugar de la clave (ErrorResponseDTO)",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
     @PostMapping("/analytics/events")
     public ResponseEntity<EventoAnaliticoResponse> registrarEvento(
-            @RequestBody EventoAnaliticoRequest request) {
+            @RequestBody EventoAnaliticoRequest request,
+            @Parameter(hidden = true) Authentication authentication) {
+
+        // API-05: el módulo dueño de la clave (authentication.getName()) debe coincidir con el moduloOrigen del evento
+        if (request.getModuloOrigen() != null && !request.getModuloOrigen().name().equals(authentication.getName())) {
+            throw new ModuloOrigenNoAutorizadoException("La clave pertenece al módulo " + authentication.getName()
+                    + " y el evento declara moduloOrigen " + request.getModuloOrigen());
+        }
+
         return ResponseEntity.status(HttpStatus.CREATED).body(analyticsService.registrarEvento(request));
     }
 
@@ -107,7 +117,6 @@ public class AnalyticsController {
             @ApiResponse(responseCode = "503", description = "Pedidos no disponible o respuesta inválida, sin snapshot válido del período exacto",
                     content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponseDTO.class)))
     })
-
     @GetMapping("/analytics/dashboard")
     public ResponseEntity<DashboardResponse> obtenerTablero(
             @Parameter(description = "Inicio inclusivo, ISO-8601 (yyyy-MM-dd). Si se omite, fecha actual del servidor",
@@ -119,8 +128,6 @@ public class AnalyticsController {
         return ResponseEntity.ok(analyticsService.generarTablero(desde, hasta));
     }
 
-
-    // Health check: responde si el proceso está levantado. No consulta la BD ni otros módulos.
     @Operation(summary = "Health check del módulo",
             description = "Devuelve 200 con status UP si el módulo está levantado.")
     @ApiResponse(responseCode = "200", description = "Módulo operativo")

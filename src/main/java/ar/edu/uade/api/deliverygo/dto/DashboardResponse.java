@@ -4,16 +4,9 @@ import java.util.List;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * Respuesta del tablero de analítica para un período (DTO-04, API-04 según el TPO).
- *
- * Campos: {@code generadoEn} (momento de generación de la respuesta), {@code metricas} (lista de DTO-10)
- * y {@code parcial}.
- *
- * Decisión (DM-09): {@code parcial = true} indica que se usó un snapshot guardado del período exacto
- * porque Pedidos no respondió o respondió datos inválidos. El tablero sigue disponible con degradación
- * explícita en lugar de fallar por completo.
+ * DTO-04 (salida, API-04): tablero de analítica de un período. generadoEn es el momento de la respuesta y metricas es una lista de DTO-10.
+ * DM-09: parcial = true indica que se usó el snapshot del período exacto porque Pedidos no respondió o devolvió datos inválidos.
  */
-// DTO-04 (salida, API-04)
 @Schema(description = "Resultado del tablero de analítica para un período")
 public class DashboardResponse {
 
@@ -22,7 +15,7 @@ public class DashboardResponse {
     @Schema(description = "Métricas disponibles para el período")
     private List<ar.edu.uade.api.deliverygo.dto.MetricaResumen> metricas;
     @Schema(description = "Indica uso de un snapshot del período exacto ante indisponibilidad o respuesta inválida de Pedidos", example = "false")
-    private boolean parcial; //DM-09
+    private boolean parcial; // DM-09: true si se usó un snapshot de respaldo
 
     public DashboardResponse() {
     }

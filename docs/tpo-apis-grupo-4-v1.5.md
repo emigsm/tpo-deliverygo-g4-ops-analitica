@@ -26,6 +26,7 @@
 | 1.2 | 24/10/2026 | 3,4,5,10 | Se agregan RN-07 y RN-08 con sus excepciones. | Faltantes en los flujos alternativos de CU-01/CU-02 al implementar ReviewService |
 | 1.3 | 15/11/2026 | 1, 3, 4, 5, 6, 10, 11, 12, 13 | Sincronización con la implementación: CU-06 a CU-09 implementados (API-05, API-06, SRV-04 a SRV-07, REP-06 a REP-09, DTO-11/DTO-12, RN-09, ENT-03); CU-10 no implementado. Corrección de nombres sin ñ, firma de generarTablero, fallback DM-09 al snapshot del período exacto, INT-01 y DTO-05 sin CU-05, comentario máximo 1000 caracteres, pedido inexistente, máximo 2 reseñas por pedido, REP-04 y excepciones. | Alineación con el código final de la entrega. |
 | 1.4 | 17/11/2026 | 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13 | Subsección 4.1 Casos de uso de Evolución; tabla de atributos de ENT-03 EventoAnalitico y su relación con Métrica; tipos de métrica de ENT-02; DM-14 a DM-18; encabezados SEC-06 a SEC-10 (diagramas pendientes); RN-09 asociada a CU-08 a CU-10; actores y trazabilidad del resumen ejecutivo (Sección 2\) y de la Sección 10 extendidos a CU-06 a CU-10. Revisión integral de trazabilidad: SEC-06 a SEC-10 en la matriz (figuraban como "No aplica"); RN-03, RN-06 y RN-09 con sus CU, SRV y ENT; REP-03 a REP-07 con sus CU; REP-05 en CU-10 / SRV-08; API-04, DTO-04 y DTO-10 con sus CU. | Completar la etapa de Evolución prevista en la hoja de ruta del TPO y garantizar trazabilidad total entre CU, RN, ENT, SEC, SRV, REP, API, DTO e INT. |
+| 1.5 | 23/11/2026 | 5, 7, 9, 12.2 | Seguridad: la identidad sale del JWT emitido por Usuarios (HS256, claims sub y role); se elimina el header temporal X-Usuario-Id y HTTP Basic. Se definen roles por ruta: POST /reviews solo CLIENTE; API-04 y API-06 solo ADMIN. Los 401 y 403 de seguridad responden con ErrorResponseDTO. RN-09 suma dos validaciones: entidadId positivo y fechaEvento no futura (400 INVALID_ANALYTICS_EVENT). API-05 se autentica con X-Api-Key por módulo emisor. Se agrega DM-19. | Devolución de la nota de seguimiento: la identidad debe ser validada y se debe controlar quién registra reseñas y consulta métricas. |
 
 ## **1\. Objetivo y alcance la primera etapa**
 
@@ -294,7 +295,7 @@ CU-06 a CU-10 corresponden a la etapa de Evolución. CU-06 a CU-09 están implem
 | RN-06 | No puede haber dos snapshots de “Métrica” para la misma combinación de fuente, tipo de métrica y período. | CU-05, CU-08, CU-09, CU-10 (previsto) | SRV-03, SRV-06, SRV-07, SRV-08 / ENT-02 (constraint UNIQUE) |
 | RN-07 | El pedido debe pertenecer al usuario autenticado. | CU-01, CU-02 | SRV-01, validado contra PedidoDTO.usuarioId obtenido de INT-01 |
 | RN-08 | El usuario, comercio o repartidor referenciados deben existir y estar activos. | CU-01, CU-02 | SRV-01, validado contra UsuarioDTO/ComercioDTO/RepartidorDTO obtenidos de INT-02/INT-03/INT-04 |
-| RN-09 | tipoEvento, moduloOrigen, entidadId y fechaEvento son obligatorios en un evento analítico. | CU-06, CU-08, CU-09, CU-10 (previsto) | SRV-04, validado en AnalyticsService.validarEvento / ENT-03 (constraint NOT NULL) |
+| RN-09 | tipoEvento, moduloOrigen, entidadId y fechaEvento son obligatorios en un evento analítico. entidadId debe ser positivo y fechaEvento no puede estar en el futuro (se tolera 1 minuto por diferencia de relojes entre módulos). | CU-06, CU-08, CU-09, CU-10 (previsto) | SRV-04, validado en AnalyticsService.validarEvento / ENT-03 (constraint NOT NULL) |
 
 ## 
 
@@ -464,6 +465,11 @@ Alternativa descartada: Un endpoint de analítica por cada fuente (pedidos/pagos
 Motivo: DTO-04/DTO-10 ya son suficientemente genéricos para no necesitar contratos nuevos; es fiel al alcance original de CU-05.  
 Impacta en: API-04, SRV-03, SRV-06, SRV-07, SRV-08, CU-05, CU-08, CU-09, CU-10.
 
+**DM-19: La identidad del usuario sale del JWT que emite Usuarios, validado con HS256 y clave compartida (JWT_SECRET); los permisos se controlan por rol.**  
+Alternativa descartada: Header temporal X-Usuario-Id con HTTP Basic; emitir tokens propios en este módulo; firma asimétrica RS256 (en el contrato de Usuarios es una propuesta no confirmada entre equipos).  
+Motivo: El header lo escribe el cliente y permite suplantar a cualquier usuario. Con el JWT, el usuarioId (claim "sub") no se puede alterar sin invalidar la firma. Este módulo solo valida el token (firma, vencimiento y que "sub" sea numérico); no lo emite. Sin token válido responde 401; con token válido pero rol incorrecto, 403. Reglas: POST /api/v1/reviews solo CLIENTE; GET /api/v1/analytics/dashboard y /metrics solo ADMIN; POST /api/v1/analytics/events solo módulos emisores con X-Api-Key (el contrato de Usuarios indica que los módulos usan API Key y que un ADMIN no es un módulo); GET /api/v1/status público; el resto, cualquier token válido.  
+Impacta en: SecurityConfig, JwtAuthFilter, JwtUtil, OpinionesController, API-01, API-04, API-06, RN-07.
+
 ## **8\. Diagramas de secuencia**
 
 ### **SEC-01 \- Crear reseña de comercio (CU-01)**
@@ -578,6 +584,8 @@ ReviewService (CU-01 a CU-04) y AnalyticsService (CU-05) están separados por su
 | API-04 | GET | /api/v1/analytics/dashboard | CU-05, CU-08, CU-09, CU-10 (previsto) | SRV-03 | periodoDesde, periodoHasta (query, opcionales) \-\> DTO-04 |
 | API-05 | POST | /api/v1/analytics/events | CU-06 | SRV-04 | DTO-11 \-\> DTO-12 |
 | API-06 | GET | /api/v1/analytics/metrics | CU-07 | SRV-05 | periodoDesde, periodoHasta (query, obligatorios) \-\> DTO-10 |
+
+**Seguridad (DM-19).** Todas las APIs exigen el header Authorization: Bearer con un JWT de Usuarios, salvo GET /api/v1/status. Roles: API-01 solo CLIENTE (usuarioId = claim "sub"); API-04 y API-06 solo ADMIN; API-02 y API-03 cualquier token válido; API-05 solo los módulos emisores, con header X-Api-Key (una clave por módulo) y moduloOrigen igual al módulo dueño de la clave (403 MODULE_ORIGIN_MISMATCH si no coincide). Un JWT no sirve para API-05. Sin token o token inválido: 401 (code UNAUTHENTICATED). Rol incorrecto: 403 (code FORBIDDEN). Ambos usan el formato ErrorResponseDTO y el header WWW-Authenticate: Bearer en el 401.
 
 ### 
 

@@ -4,19 +4,11 @@ import org.hibernate.annotations.Check;
 import java.time.LocalDateTime;
 
 /**
- * ENT-01 - Entidad {@code resenas}: calificación de un usuario sobre un pedido entregado.
- * <p>
- * Reglas aplicadas en distintas capas (defensa en profundidad):
- * <ul>
- *   <li>RN-02 - Una reseña por usuario, pedido y tipo de objetivo: {@code uk_resena_usuario_pedido_tipo}
- *       en BD, y control previo en {@code ReviewService}.</li>
- *   <li>RN-04 - Puntuación entre 1 y 5: {@code @Check} en BD, y validación en {@code ReviewService}.</li>
- *   <li>RN-05 - Inmutabilidad: {@code updatable = false} en cada campo. El controller no expone PUT ni DELETE.</li>
- * </ul>
- * Observación: {@code updatable = false} solo impide que Hibernate emita UPDATE para estos campos;
- * no protege contra cambios hechos directamente en la BD.
+ * ENT-01: reseña de un usuario sobre un pedido entregado (tabla resenas).
+ * RN-02: una reseña por usuario, pedido y tipo de objetivo (uk_resena_usuario_pedido_tipo y control previo en ReviewService).
+ * RN-04: puntuación de 1 a 5 (@Check en la BD y validación en ReviewService).
+ * RN-05: inmutable, con updatable = false en cada campo y sin endpoints PUT ni DELETE.
  */
-// RN-05: Una reseña es inmutable una vez creada. No hay endpoints PUT/DELETE
 @Entity
 @Table(name = "resenas", uniqueConstraints = @UniqueConstraint(name = "uk_resena_usuario_pedido_tipo", columnNames = {"usuario_id", "pedido_id", "tipo_objetivo"}))
 @Check(name = "ck_resena_puntuacion", constraints = "puntuacion BETWEEN 1 AND 5")
@@ -25,29 +17,28 @@ public class Resena {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // referencia a Usuario, sin FK (DM-06)
+    // DM-06: usuario referenciado por id, sin FK
     @Column(nullable = false, updatable = false)
     private Long usuarioId;
 
-    // DM-06: referencia a Pedido, sin FK
+    // DM-06: pedido referenciado por id, sin FK
     @Column(nullable = false, updatable = false)
     private Long pedidoId;
 
-    // DM-01: Enum que diferencia entre comercio y repartidor.
-    // Enumerated(EnumType.STRING) permite que JPA persista el literal del Enum.
+    // DM-01: COMERCIO o REPARTIDOR. EnumType.STRING guarda el nombre en la BD
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, updatable = false)
     private TipoObjetivo tipoObjetivo;
 
-    // DM-06: comercioId o repartidorId
+    // DM-06: id del comercio o del repartidor, sin FK
     @Column(nullable = false, updatable = false)
     private Long objetivoId;
 
-    // RN-04: De 1 a 5 (validar en ReviewService)
+    // RN-04: de 1 a 5
     @Column(nullable = false, updatable = false)
     private Integer puntuacion;
 
-    // Comentario opcional de la reseña
+    // Opcional, hasta 1000 caracteres
     @Column(length = 1000, updatable = false)
     private String comentario;
 

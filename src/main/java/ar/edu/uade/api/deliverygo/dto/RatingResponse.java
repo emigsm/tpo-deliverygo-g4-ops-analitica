@@ -4,12 +4,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 
 /**
- * DTO-03 de salida (API-02 y API-03): promedio de calificación de un comercio o repartidor.
- *
- * Decisión: sin reseñas, {@code promedio} es {@code null} y {@code cantidadResenas} es 0. Se usa {@code null}
- * para distinguir "sin datos" de "calificación cero", que es imposible porque la puntuación mínima es 1.
+ * DTO-03 (salida, API-02 y API-03): promedio de calificación de un comercio o repartidor.
+ * DM-12: sin reseñas, promedio es null y cantidadResenas es 0. Null distingue "sin datos" de una calificación 0, que es imposible porque el mínimo es 1.
  */
-// DTO-03 (salida, API-02/API-03)
 @Schema(description = "Calificación agregada de un comercio o repartidor")
 public class RatingResponse {
 

@@ -8,12 +8,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 /**
- * DTO-10 de salida: una métrica del tablero, sin {@code id} ni {@code fechaCalculo}, que son detalles internos de ENT-02.
- *
- * Decisión: {@code valor} puede ser {@code null} solo para PROMEDIO_CALIFICACION sin reseñas. Ese promedio
- * no se persiste, porque la columna {@code valor} de {@code Metrica} es NOT NULL.
+ * DTO-10 (salida, API-04): una métrica del tablero, sin id ni fechaCalculo (detalles internos de ENT-02).
+ * valor es null en PROMEDIO_CALIFICACION sin reseñas y en TIEMPO_PROMEDIO_ENTREGA sin eventos con valor. Esos casos no se persisten porque Metrica.valor es NOT NULL.
  */
-// DTO-10 (salida, API-04) Representa una métrica sin ID ni fechaCalculo
 @Schema(description = "Resumen de una métrica del tablero")
 public class MetricaResumen {
 
@@ -25,7 +22,7 @@ public class MetricaResumen {
     private LocalDate periodoDesde;
     @Schema(description = "Fin del período incluido", example = "2025-01-31")
     private LocalDate periodoHasta;
-    @Schema(description = "Valor de la métrica; null exclusivamente para PROMEDIO_CALIFICACION sin reseñas. Ese promedio no se persiste.", nullable = true, example = "25.00")
+    @Schema(description = "Valor de la métrica; null para PROMEDIO_CALIFICACION sin reseñas y para TIEMPO_PROMEDIO_ENTREGA sin eventos con valor. Esos casos no se persisten.", nullable = true, example = "25.00")
     private BigDecimal valor;
 
     public MetricaResumen() {

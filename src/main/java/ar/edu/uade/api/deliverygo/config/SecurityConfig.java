@@ -1,51 +1,48 @@
 package ar.edu.uade.api.deliverygo.config;
-
+import ar.edu.uade.api.deliverygo.model.ModuloOrigen;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import java.util.Map;
 
 /**
- * Configuración de Spring Security para la API.
- *
- * Decisiones:
- * <ul>
- *   <li>S1: la identidad sale del JWT que emite el módulo Usuarios ({@code Authorization: Bearer <token>}).
- *       {@link JwtAuthFilter} lee y valida el token. Ya no se usa HTTP Basic ni el header temporal X-Usuario-Id.</li>
- *   <li>Sin sesión ({@code STATELESS}) y sin CSRF. La API la consumen otros equipos con Postman o curl, no usa
- *       cookies de sesión, y CSRF protege justamente contra el envío automático de cookies.</li>
- *   <li>Solo {@code GET /api/v1/status} es público. El resto exige un token válido.</li>
- *   <li>Sin token, o con token inválido o vencido, la respuesta es 401.</li>
- * </ul>
+ * DM-19: seguridad de la API con JWT.
+ * Solo el GET /api/v1/status es público.
  */
 @Configuration
 public class SecurityConfig {
 
-    /**
-     * Define la cadena de filtros de seguridad.
-     *
-     * Orden de ejecución de una petición: primero {@link JwtAuthFilter} (¿quién es?) y después las reglas de
-     * {@code authorizeHttpRequests} (¿puede entrar a esta ruta?). Las reglas se evalúan de arriba hacia abajo.
-     *
-     * @param jwtUtil validador de tokens (Spring lo inyecta solo porque es un {@code @Component})
-     */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtUtil jwtUtil) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtUtil jwtUtil,
+                                                   SecurityErrorHandler errorHandler,
+                                                   @Value("${eventos.api-key.pedidos}") String clavePedidos,
+                                                   @Value("${eventos.api-key.pagos}") String clavePagos,
+                                                   @Value("${eventos.api-key.logistica}") String claveLogistica) throws Exception {
+        // API-05: una clave por módulo emisor
+        Map<ModuloOrigen, String> clavesEventos = Map.of(
+                ModuloOrigen.PEDIDOS, clavePedidos,
+                ModuloOrigen.PAGOS, clavePagos,
+                ModuloOrigen.LOGISTICA, claveLogistica);
+
         http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable())// SIN COOKIES
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Nuestro filtro corre antes del filtro de login estándar de Spring.
                 .addFilterBefore(new JwtAuthFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class)
-                // Sin identidad válida Spring respondería 403 por defecto. Lo correcto es 401 (no autenticado).
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
+                .addFilterBefore(new ApiKeyFilter(clavesEventos), UsernamePasswordAuthenticationFilter.class)
+                .exceptionHandling(ex -> ex// DM-19: los 401 y 403 usan ErrorResponseDTO, igual que el resto de la API
+                        .authenticationEntryPoint(errorHandler)
+                        .accessDeniedHandler(errorHandler))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.GET, "/api/v1/status").permitAll()
-                        .anyRequest().authenticated());
+                        .requestMatchers(HttpMethod.POST, "/api/v1/reviews").hasRole("CLIENTE") // API-01 (CU-01, CU-02): solo CLIENTE
+                        .requestMatchers(HttpMethod.GET, "/api/v1/analytics/dashboard", "/api/v1/analytics/metrics").hasRole("ADMIN")// API-04 (CU-05) y API-06 (CU-07): solo ADMIN
+                        .requestMatchers(HttpMethod.POST, "/api/v1/analytics/events").hasRole("MODULO")// API-05 (CU-06): solo los módulos emisores, con X-Api-Key (no sirve un JWT)
+                        .anyRequest().authenticated());// API-02 y API-03: cualquier token válido
         return http.build();
     }
 }

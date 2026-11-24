@@ -3,12 +3,9 @@ package ar.edu.uade.api.deliverygo.dto;
 import java.time.LocalDate;
 
 /**
- * Agregado de pedidos por estado y período (INT-05, contrato propuesto, pendiente de confirmar con Pedidos).
- *
- * No trae pedidos individuales: solo la cantidad. {@code AnalyticsService} la guarda como snapshot PEDIDOS_ENTREGADOS
- * y valida que {@code estado} y el período coincidan con lo pedido.
+ * DTO-09 (entrada, INT-05): cantidad de pedidos de un estado en un período. Contrato propuesto, pendiente de confirmar con Pedidos.
+ * AnalyticsService la guarda como snapshot PEDIDOS_ENTREGADOS y valida que estado y período coincidan con lo pedido.
  */
-// DTO-09 (entrada, INT-05).
 public class OrdersStatsDTO {
 
     private String estado;

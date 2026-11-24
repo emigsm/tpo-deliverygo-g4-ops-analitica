@@ -1,10 +1,9 @@
 package ar.edu.uade.api.deliverygo.dto;
 
 /**
- * Usuario recibido de Usuarios (INT-02, DTO-06). Solo tiene {@code id} y {@code activo}.
- * {@code ReviewService} lo usa para confirmar que el usuario existe y está activo antes de crear la reseña (RN-08).
+ * DTO-06 (entrada, INT-02): usuario recibido de Usuarios, solo id y activo.
+ * ReviewService lo usa para confirmar que existe y está activo (RN-08).
  */
-// DTO-06 (entrada, INT-02).
 public class UsuarioDTO {
 
     private Long id;

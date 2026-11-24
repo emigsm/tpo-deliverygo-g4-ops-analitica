@@ -1,77 +1,44 @@
 package ar.edu.uade.api.deliverygo.config;
-
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 /**
- * S1 - Herramienta para trabajar con el JWT que emite el módulo Usuarios.
- *
- * Qué es un JWT (explicado simple):
- * <ul>
- *   <li>Es un texto con 3 partes separadas por puntos: {@code encabezado.datos.firma}.</li>
- *   <li>Los "datos" (claims) dicen quién es el usuario: {@code sub} = id del usuario, {@code role} = su rol
- *       (CLIENTE, COMERCIO, REPARTIDOR o ADMIN) y {@code exp} = cuándo vence.</li>
- *   <li>La "firma" se calcula con una clave secreta que conocen solo Usuarios y este módulo. Si alguien cambia los
- *       datos (por ejemplo, el rol), la firma deja de coincidir y el token se rechaza.</li>
- * </ul>
- *
- * Este módulo nunca crea tokens (eso lo hace Usuarios). Solo comprueba que sean auténticos y que no estén vencidos.
- * La clave viene de {@code jwt.secret} en application.properties (variable de entorno JWT_SECRET).
- *
- * El método {@link #generarToken} existe SOLO para que los tests puedan fabricar tokens de prueba.
+ * DM-19: valida los JWT que emite el módulo Usuarios (HS256, clave compartida en jwt.secret).
+ * Este módulo no emite tokens.
  */
 @Component
 public class JwtUtil {
-
-    /** Clave secreta ya convertida al formato que pide la librería jjwt. */
     private final SecretKey clave;
 
     public JwtUtil(@Value("${jwt.secret}") String secreto) {
-        // HS256 necesita una clave de al menos 32 bytes. Si es más corta, Keys lanza una excepción al arrancar.
-        this.clave = Keys.hmacShaKeyFor(secreto.getBytes(StandardCharsets.UTF_8));
+        this.clave = Keys.hmacShaKeyFor(secreto.getBytes(StandardCharsets.UTF_8));// HS256 exige al menos 32 bytes
     }
 
-    /**
-     * Valida un token y devuelve sus datos (claims).
-     *
-     * Verifica dos cosas a la vez: que la firma sea correcta y que el token no esté vencido.
-     *
-     * @param token el token SIN el prefijo "Bearer "
-     * @return los datos del token
-     * @throws JwtException si el token está vencido, mal formado o tiene la firma inválida
-     */
+    /** Devuelve los claims si la firma es correcta y el token no venció. Si no, lanza JwtException. */
     public Claims validar(String token) {
-        return Jwts.parser()
-                .verifyWith(clave)          // comprueba la firma con nuestra clave
+        return Jwts.parser()//crea el analizador del JWT
+                .verifyWith(clave)//le paso la clave para validar la firma
                 .build()
-                .parseSignedClaims(token)   // también falla si exp ya pasó o si el token no está firmado
-                .getPayload();
+                .parseSignedClaims(token)//analiza el token, verifica su firma y vencimiento
+                .getPayload();//obtengo el contenido del token, sus claims (cada propiedad)
     }
 
-    /**
-     * Fabrica un token firmado. Solo se usa en tests (este módulo no emite tokens en producción).
-     *
-     * @param usuarioId      se guarda en el claim {@code sub} (como texto, igual que hace Usuarios)
-     * @param rol            se guarda en el claim {@code role}, sin prefijo ROLE_
-     * @param minutosDeVida  minutos hasta el vencimiento. Un valor negativo genera un token ya vencido
-     */
+    /** Solo para tests. Un valor negativo en minutosDeVida genera un token ya vencido. */
     public String generarToken(Long usuarioId, String rol, long minutosDeVida) {
         Date ahora = new Date();
         Date vencimiento = new Date(ahora.getTime() + minutosDeVida * 60_000);
         return Jwts.builder()
-                .subject(String.valueOf(usuarioId))
-                .claim("role", rol)
+                .subject(String.valueOf(usuarioId))//identifico al usuario
+                .claim("role", rol)//le agrego el rol
                 .issuedAt(ahora)
                 .expiration(vencimiento)
                 .signWith(clave)
-                .compact();
+                .compact();//genero el texto final, une las partes del JWT y devuelve el token como un String (header + payload + firma)
     }
 }

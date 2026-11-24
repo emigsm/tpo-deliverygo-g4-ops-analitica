@@ -7,9 +7,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * DTO-12 de salida (API-05): el evento registrado. Es DTO-11 más el {@code id} generado por la BD.
+ * DTO-12 (salida, API-05): el evento registrado. Es DTO-11 más el id generado por la BD.
  */
-// DTO-12 (salida, API-05): el evento registrado. Es DTO-11 más el id generado.
 public class EventoAnaliticoResponse {
     private Long id;
     private TipoEvento tipoEvento;

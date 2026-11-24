@@ -4,22 +4,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.LocalDate;
 
-// Métrica: resultado agregado ya calculado del tablero.
 /**
- * Métrica - Resultado agregado ya calculado para el tablero (ENT-02, CU-05).
- * <p>
- * Cada fila representa un valor de {@code tipoMetrica} para una {@code fuente} y un período
- * {@code [periodoDesde, periodoHasta]}. El resultado se persiste como "foto" del cálculo, en lugar
- * de recalcularlo en cada consulta del tablero.
- * <p>
- * Decisiones:
- * <ul>
- *   <li>{@code uk_metrica_fuente_tipo_periodo} (RN-06) impide duplicar la misma métrica para el mismo período.</li>
- *   <li>Solo {@code valor} y {@code fechaCalculo} tienen setter: al recalcular el mismo período,
- *       {@code AnalyticsService.guardarSnapshot} modifica la entidad existente (dirty checking)
- *       en lugar de borrar e insertar otra fila.</li>
- *   <li>{@code BigDecimal} con precisión (19,4) evita errores de redondeo de los {@code double}.</li>
- * </ul>
+ * ENT-02: resultado ya calculado de un indicador del tablero para una fuente y un período (tabla metricas, CU-05).
+ * DM-05: se guarda como snapshot en lugar de recalcularse en cada consulta.
+ * RN-06: no se repite la misma fuente, tipo de métrica y período (uk_metrica_fuente_tipo_periodo).
+ * Solo valor y fechaCalculo tienen setter: al recalcular un período se actualiza la fila existente.
  */
 @Entity
 @Table(name = "metricas", uniqueConstraints = @UniqueConstraint(name = "uk_metrica_fuente_tipo_periodo", columnNames = {"fuente", "tipo_metrica", "periodo_desde", "periodo_hasta"}))
@@ -29,7 +18,7 @@ public class Metrica {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // RN-03
+    // RN-03: toda métrica indica su fuente
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FuenteMetrica fuente;
@@ -38,14 +27,15 @@ public class Metrica {
     @Column(nullable = false)
     private TipoMetrica tipoMetrica;
 
-    // RN-03
+    // RN-03: toda métrica indica su período
     @Column(nullable = false)
     private LocalDate periodoDesde;
 
-    // RN-03
+    // RN-03: toda métrica indica su período
     @Column(nullable = false)
     private LocalDate periodoHasta;
 
+    // BigDecimal con 4 decimales para no perder precisión
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal valor;
 

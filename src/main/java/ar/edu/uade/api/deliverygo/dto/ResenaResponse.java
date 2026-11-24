@@ -4,12 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDateTime;
 
 /**
- * DTO-02 de salida (API-01): reseña creada.
- *
- * Expone {@code objetivoId}, que el cliente no envió y el servicio derivó del pedido, y {@code fechaCreacion},
- * asignada por la entidad al crearse.
+ * DTO-02 (salida, API-01): reseña creada. objetivoId lo derivó el servicio del pedido y fechaCreacion la asignó la entidad.
  */
-// DTO-02 (salida, API-01)
 @Schema(description = "Reseña creada")
 public class ResenaResponse {
 

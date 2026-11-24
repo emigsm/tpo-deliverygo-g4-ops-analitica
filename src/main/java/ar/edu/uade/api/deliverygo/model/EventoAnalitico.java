@@ -1,26 +1,14 @@
 package ar.edu.uade.api.deliverygo.model;
 
-// ENT-03: evento operativo genérico emitido por otro módulo (DM-14).
-// Sin relación persistente con Metrica ni con Resena: el servicio lee eventos,
-// calcula y guarda el resultado como Metrica.
-
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * ENT-03 - Entidad {@code eventos_analiticos}.
- * <p>
- * Registro crudo de un hecho operativo emitido por PEDIDOS, PAGOS o LOGISTICA (DM-14).
- * Es la entrada de los análisis CU-08, CU-09 y CU-10: el {@code AnalyticsService} lee estos
- * eventos, calcula y persiste el resultado como {@link Metrica}.
- * <p>
- * Decisiones:
- * <ul>
- *   <li>No tiene relación JPA con {@code Metrica} ni con {@code Resena}: el vínculo es de cálculo, no de modelo.</li>
- *   <li>{@code entidadId} es un {@code Long} sin FK (DM-06), porque el pedido, pago o entrega vive en otro módulo.</li>
- * </ul>
+ * ENT-03: hecho operativo emitido por otro módulo (tabla eventos_analiticos). DM-14: entidad única con discriminador tipoEvento.
+ * Es la entrada de CU-08, CU-09 y CU-10: AnalyticsService lee los eventos y guarda el resultado como Metrica.
+ * No tiene relación JPA con Metrica ni con Resena.
  */
 @Entity
 @Table(name = "eventos_analiticos")
@@ -29,29 +17,28 @@ public class EventoAnalitico {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // RN-09
+    // RN-09, DM-14: indica qué ocurrió
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TipoEvento tipoEvento;
 
-    // RN-09, DM-15
+    // RN-09, DM-15: módulo que emitió el evento
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ModuloOrigen moduloOrigen;
 
-    // RN-09. Referencia externa sin FK (DM-06): pedido, pago o entrega que originó el evento.
-    // Long provisional: el tipo definitivo está pendiente de acordar.
+    // RN-09, DM-06: id del pedido, pago o entrega que originó el evento, sin FK
     @Column(nullable = false)
     private Long entidadId;
 
-    // Opcional: magnitud numérica cuando aplica (ej. minutos de una entrega)
+    // Opcional: magnitud numérica (ej. minutos de una entrega)
     @Column(precision = 19, scale = 4)
     private BigDecimal valor;
 
-    // Opcional: dato cualitativo cuando aplica (ej. nuevo estado del pedido)
+    // Opcional: dato de texto (ej. nuevo estado del pedido)
     private String detalle;
 
-    // RN-09. LocalDateTime provisional: zona horaria pendiente de acordar.
+    // RN-09: cuándo ocurrió. Zona horaria pendiente de acordar entre módulos
     @Column(nullable = false)
     private LocalDateTime fechaEvento;
 

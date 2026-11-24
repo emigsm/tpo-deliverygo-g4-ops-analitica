@@ -1,5 +1,4 @@
 package ar.edu.uade.api.deliverygo.config;
-
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.Components;
@@ -12,38 +11,33 @@ import org.springframework.context.annotation.Configuration;
 
 
 /**
- * Configura el documento OpenAPI que expone springdoc (Swagger UI y /v3/api-docs).
- *
+ * Documento OpenAPI que expone Springdoc (Swagger UI y /v3/api-docs).
  * Tiene dos beans:
- * <ul>
- *   <li>{@code deliveryGoOpenAPI}: título, versión, descripción general y esquema de seguridad HTTP Basic.</li>
- *   <li>{@code implementedExamples}: un {@code OpenApiCustomizer} que agrega a cada operación el header
- *       {@code X-Correlation-Id}, la respuesta 401 (y 403 en reviews) y ejemplos JSON.</li>
- * </ul>
- *
- * Observación: la descripción dice "sesión de formulario y CSRF en POST", pero {@code SecurityConfig} usa HTTP Basic,
- * sin sesión y sin CSRF. La documentación de OpenAPI quedó desalineada del código; el código es la fuente.
+ * - deliveryGoOpenAPI: título, versión, descripción general y esquema de seguridad JWT Bearer.
+ * - implementedExamples: un OpenApiCustomizer que agrega a cada operación el header X-Correlation-Id, la respuesta 401, 403 en reviews y ejemplos JSON.
+ * DM-19: JWT Bearer. El código de SecurityConfig es la fuente.
  */
 @Configuration
 public class OpenApiConfig {
     @Bean
     public OpenAPI deliveryGoOpenAPI() {
         return new OpenAPI().info(new Info().title("DeliveryGo API - Opiniones y Analítica")
-                .version("1.0").description("API-01 a API-04 y API-06 implementadas. API-06 consulta snapshots guardados. Integraciones externas mock. "
-                        + "Spring Security autoconfigurado: HTTP Basic o sesión de formulario y CSRF en POST. "
-                        + "X-Usuario-Id es identidad de negocio temporal, no autentica. JWT Bearer es futuro. "
+                .version("1.1").description("API-01 a API-04 y API-06 implementadas. API-06 consulta snapshots guardados. Integraciones externas mock. "
+                        + "Autenticación: JWT Bearer emitido por el módulo Usuarios (HS256). El id del usuario sale del claim sub. "
+                        + "Roles: CLIENTE crea reseñas; ADMIN consulta tablero y métricas. Los eventos (API-05) los envían los módulos con X-Api-Key. "
                         + "API-05 sigue siendo una propuesta sin implementación. Los YAML presentados se conservan como referencia de la entrega. "
                         + "Cambio incompatible: errores manejados usan code/message en lugar de error/mensaje, "
                         + "timestamp UTC y correlationId. Errores del framework y seguridad conservan su formato."))
-                .components(new Components().addSecuritySchemes("basicAuth",
-                        new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("basic")))
-                .addSecurityItem(new SecurityRequirement().addList("basicAuth"));
+                .components(new Components().addSecuritySchemes("bearerAuth",
+                        new SecurityScheme().type(SecurityScheme.Type.HTTP).scheme("bearer").bearerFormat("JWT"))
+                        // API-05: los módulos emisores usan clave en lugar de JWT
+                        .addSecuritySchemes("apiKeyAuth",
+                        new SecurityScheme().type(SecurityScheme.Type.APIKEY).in(SecurityScheme.In.HEADER).name("X-Api-Key")))
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"));
     }
 
     /**
-     * Agrega a la documentación los headers, las respuestas comunes y los ejemplos de cada operación.
-     *
-     * Los ejemplos están escritos a mano como JSON. Pueden desalinearse del comportamiento real, porque no se generan desde el código.
+     * DOC: headers, respuestas comunes y ejemplos de cada operación.
      */
     @Bean
     public OpenApiCustomizer implementedExamples() {
@@ -54,15 +48,17 @@ public class OpenApiConfig {
                         .description("UUID canónico opcional. Solo errores manejados lo reutilizan; ausente o inválido genera UUID.")
                         .schema(new io.swagger.v3.oas.models.media.StringSchema()));
                 operation.getResponses().addApiResponse("401", new io.swagger.v3.oas.models.responses.ApiResponse()
-                        .description("Spring Security: autenticación requerida o credenciales inválidas (Accept: application/json). No garantiza ErrorResponseDTO."));
+                        .description("UNAUTHENTICATED: falta el token JWT, está vencido o su firma es inválida (ErrorResponseDTO)."));
                 if (path.endsWith("/reviews")) {
                     operation.getResponses().addApiResponse("403", new io.swagger.v3.oas.models.responses.ApiResponse()
-                            .description("Spring Security: POST sin token CSRF válido, incluso con HTTP Basic. No garantiza ErrorResponseDTO."));
+                            .description("FORBIDDEN: el token es válido pero su rol no es CLIENTE (ErrorResponseDTO)."));
                 }
                 operation.getResponses().forEach((status, response) -> {
                     if (response.getContent() == null) return;
                     var json = response.getContent().get("application/json");
+
                     if (json == null) return;
+
                     if (status.equals("201")) {
                         json.addExamples("creada", example("""
                                 {"id":1,"usuarioId":100,"pedidoId":1,"tipoObjetivo":"COMERCIO","objetivoId":10,"puntuacion":5,"comentario":"Buena atención","fechaCreacion":"2026-10-30T12:00:00"}
@@ -93,6 +89,7 @@ public class OpenApiConfig {
                             case "503" -> "EXTERNAL_SERVICE_UNAVAILABLE";
                             default -> (path.endsWith("dashboard") || path.endsWith("/metrics")) ? "INVALID_PERIOD" : "INVALID_RATING";
                         };
+
                         String message = switch (code) {
                             case "DUPLICATE_REVIEW" -> "Ya existe una reseña para ese pedido y tipo";
                             case "BUSINESS_RULE_VIOLATION" -> "El pedido no fue entregado";

@@ -4,15 +4,10 @@ import java.time.Instant;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 /**
- * Cuerpo estándar de error de la API, producido por {@code GlobalExceptionHandler}.
- *
- * Campos: {@code timestamp} (UTC), {@code status} (HTTP), {@code code} (código estable que el cliente
- * puede comparar sin parsear texto), {@code message}, {@code path} y {@code correlationId} (UUID recibido
- * en {@code X-Correlation-Id} o generado por el servidor).
- *
- * Decisión: un único formato facilita el contrato OpenAPI y el seguimiento de errores entre equipos.
+ * Formato de error de la API, producido por GlobalExceptionHandler y SecurityErrorHandler.
+ * code es un código estable que el cliente puede comparar sin leer el mensaje. correlationId es el X-Correlation-Id
+ * recibido (si es un UUID válido) o uno generado.
  */
-//Respuesta para errores devuelto por GlobalExceptionHandler
 @Schema(description = "Formato de error devuelto por el manejador global de excepciones",
         requiredProperties = {"timestamp", "status", "code", "message", "path", "correlationId"})
 public class ErrorResponseDTO {

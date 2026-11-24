@@ -1,5 +1,4 @@
 package ar.edu.uade.api.deliverygo.repository;
-
 import ar.edu.uade.api.deliverygo.model.FuenteMetrica;
 import ar.edu.uade.api.deliverygo.model.Metrica;
 import ar.edu.uade.api.deliverygo.model.TipoMetrica;
@@ -9,24 +8,16 @@ import java.util.Optional;
 import java.util.List;
 
 /**
- * Acceso a ENT-02 ({@code metricas}): snapshots ya calculados del tablero.
- * <p>
- * Los nombres de los métodos derivados describen la consulta, y Spring Data la convierte en SQL
- * sin escribir JPQL. El guardado con upsert (RN-06) usa {@code findByFuenteAndTipoMetricaAndPeriodoDesdeAndPeriodoHasta}
- * desde {@code AnalyticsService}.
+ * ENT-02: acceso a la tabla metricas (snapshots ya calculados del tablero).
+ * RN-06: AnalyticsService usa REP-05 para decidir si actualiza un snapshot o crea uno nuevo.
  */
 public interface MetricaRepository extends JpaRepository<Metrica, Long> {
-
-    // REP-08 (CU-07): snapshots completamente contenidos en el rango, límites inclusivos.
+    // REP-04 (CU-05, CU-08, CU-09, RN-06): persistir el snapshot es el save() heredado de JpaRepository
+    // REP-04: último snapshot de una fuente y tipo de métrica. Hoy ningún servicio lo usa
+    //Optional<Metrica> findFirstByFuenteAndTipoMetricaOrderByFechaCalculoDesc(FuenteMetrica fuente, TipoMetrica tipoMetrica);
+    // REP-05 (CU-05, CU-08, CU-09, RN-06): snapshot del período exacto, si existe
+    Optional<Metrica> findByFuenteAndTipoMetricaAndPeriodoDesdeAndPeriodoHasta(FuenteMetrica fuente, TipoMetrica tipoMetrica, LocalDate periodoDesde, LocalDate periodoHasta);
+    // REP-08 (CU-07, RN-03): snapshots completamente contenidos en el rango, límites inclusivos
     List<Metrica> findByPeriodoDesdeGreaterThanEqualAndPeriodoHastaLessThanEqual(
             LocalDate periodoDesde, LocalDate periodoHasta);
-
-    // REP-04: Persistir el snapshot (Default)
-    // Nota: el identificador REP-04 aparece también en la consulta siguiente; revisar contra el TPO.
-
-    // REP-04: Último snapshot persistido para una fuente/tipoMetrica dados. (Puede no haber)
-    Optional<Metrica> findFirstByFuenteAndTipoMetricaOrderByFechaCalculoDesc(FuenteMetrica fuente, TipoMetrica tipoMetrica);
-
-    // REP-05: Verificar si hay Snapshot existente para un período exacto.
-    Optional<Metrica> findByFuenteAndTipoMetricaAndPeriodoDesdeAndPeriodoHasta(FuenteMetrica fuente, TipoMetrica tipoMetrica, LocalDate periodoDesde, LocalDate periodoHasta);
 }

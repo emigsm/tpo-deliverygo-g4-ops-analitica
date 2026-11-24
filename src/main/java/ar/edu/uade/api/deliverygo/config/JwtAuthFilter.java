@@ -15,28 +15,13 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * S1 - Filtro que identifica al usuario a partir del JWT.
- *
- * Un filtro es un "guardia en la puerta": se ejecuta ANTES de que la petición llegue al controller.
- *
- * Qué hace, paso a paso:
- * <ol>
- *   <li>Busca el header {@code Authorization: Bearer <token>}.</li>
- *   <li>Si no está, deja pasar la petición sin identidad. Más adelante Spring Security responderá 401 si la ruta exige login.</li>
- *   <li>Si está, valida el token con {@link JwtUtil} (firma y vencimiento).</li>
- *   <li>Si es válido, guarda en el contexto de seguridad: quién es ({@code sub}) y su rol ({@code role}).</li>
- *   <li>Si es inválido (vencido, firma falsa, mal formado), NO guarda nada. El resultado final es 401.</li>
- * </ol>
- *
- * Nunca decide si el usuario puede entrar a una ruta: eso lo hacen las reglas de {@link SecurityConfig}.
- * Este filtro solo responde "¿quién es?".
+ * DM-19: lee el header Authorization Bearer, valida el token y guarda el usuario (sub) y su rol.
+ * Si no hay token o es inválido no guarda nada, y Spring Security responde 401.
+ * Los permisos por ruta se definen en SecurityConfig.
  */
 public class JwtAuthFilter extends OncePerRequestFilter {
-
     private static final String PREFIJO_BEARER = "Bearer ";
-
     private final JwtUtil jwtUtil;
-
     public JwtAuthFilter(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
     }
@@ -48,29 +33,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String header = request.getHeader("Authorization");
 
-        // Solo intentamos autenticar si el header existe y empieza con "Bearer ".
         if (header != null && header.startsWith(PREFIJO_BEARER)) {
             String token = header.substring(PREFIJO_BEARER.length()).trim();
             try {
                 Claims datos = jwtUtil.validar(token);
+                Long.parseLong(datos.getSubject());// El sub tiene que ser un número; así los controllers pueden convertirlo sin riesgo
 
-                // Spring Security espera los roles con prefijo ROLE_ (ej: ROLE_CLIENTE).
-                // Usuarios envía el rol sin prefijo, así que lo agregamos acá.
-                String rol = datos.get("role", String.class);
-                List<SimpleGrantedAuthority> permisos = List.of(new SimpleGrantedAuthority("ROLE_" + rol));
+                // Usuarios manda el rol sin prefijo; Spring Security lo espera como ROLE_xxx
+                List<SimpleGrantedAuthority> permisos = List.of(new SimpleGrantedAuthority("ROLE_" + datos.get("role", String.class)));
 
-                // principal = id del usuario (claim sub). credentials = null porque ya no hay contraseña.
-                UsernamePasswordAuthenticationToken autenticacion =
-                        new UsernamePasswordAuthenticationToken(datos.getSubject(), null, permisos);
-                SecurityContextHolder.getContext().setAuthentication(autenticacion);
+                SecurityContextHolder.getContext().setAuthentication(
+                        new UsernamePasswordAuthenticationToken(datos.getSubject(), null, permisos));
 
-            } catch (JwtException | IllegalArgumentException e) {
-                // Token inválido: dejamos el contexto vacío. Spring Security responderá 401.
+            } catch (JwtException | IllegalArgumentException e) { // incluye NumberFormatException
                 SecurityContextHolder.clearContext();
             }
         }
-
-        // En todos los casos, la petición sigue su camino hacia el siguiente filtro / controller.
         chain.doFilter(request, response);
     }
 }

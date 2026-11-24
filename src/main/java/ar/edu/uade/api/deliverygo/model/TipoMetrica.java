@@ -1,12 +1,7 @@
 package ar.edu.uade.api.deliverygo.model;
 
-// Tipo de métrica mostrada en el tablero (CU-05)
-
 /**
- * Tipo de métrica que muestra el tablero (CU-05) y que se guarda en {@link Metrica#getTipoMetrica()}.
- * <p>
- * Agrupa métricas de reseñas (calificación, cantidad), pedidos, pagos y entregas. Cada valor se
- * calcula en {@code AnalyticsService} a partir de datos de su {@link FuenteMetrica}.
+ * CU-05: Tipo de métrica que muestra el tablero
  */
 public enum TipoMetrica {
     PROMEDIO_CALIFICACION,

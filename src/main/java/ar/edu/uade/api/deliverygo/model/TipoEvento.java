@@ -1,12 +1,8 @@
 package ar.edu.uade.api.deliverygo.model;
 
-
-// Discriminador de EventoAnalitico (DM-14): qué ocurrió
 /**
- * Discriminador de {@link EventoAnalitico} (DM-14): indica qué ocurrió.
- * <p>
- * Cada constante alimenta un análisis: pagos aprobados/rechazados (CU-09), entregas (CU-10)
- * y cambios de estado de pedido (CU-08). Se persiste como texto.
+ * DM-14: indica qué ocurrió en un EventoAnalitico. Cada valor alimenta un análisis:
+ * PEDIDO_ESTADO_CAMBIADO (CU-08), PAGO_APROBADO y PAGO_RECHAZADO (CU-09), ENTREGA_COMPLETADA (CU-10).
  */
 public enum TipoEvento {
     PEDIDO_ESTADO_CAMBIADO,

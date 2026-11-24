@@ -8,14 +8,10 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * DTO-11 de entrada (API-05): payload para registrar un evento analítico.
- *
- * RN-09 exige {@code tipoEvento}, {@code moduloOrigen}, {@code entidadId} y {@code fechaEvento}; {@code valor}
- * y {@code detalle} son opcionales. La validación se hace en el servicio y no con anotaciones Bean Validation,
- * para que el rechazo salga como {@code ErrorResponseDTO} con el mismo formato que el resto de la API.
+ * DTO-11 (entrada, API-05): evento analítico enviado por otro módulo.
+ * RN-09: tipoEvento, moduloOrigen, entidadId y fechaEvento son obligatorios; valor y detalle son opcionales.
+ * No usa Bean Validation: RN-09 se valida en SRV-04 para responder con ErrorResponseDTO.
  */
-// DTO-11 (entrada, API-05). RN-09: tipoEvento, moduloOrigen, entidadId y fechaEvento son obligatorios.
-// No declara Bean Validation: RN-09 se valida en SRV-04 para responder con ErrorResponseDTO.
 public class EventoAnaliticoRequest {
 
     private TipoEvento tipoEvento;

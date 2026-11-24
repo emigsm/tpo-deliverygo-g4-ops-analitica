@@ -8,27 +8,19 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * Acceso a ENT-01 ({@code resenas}).
- * <p>
- * Esta interfaz no declara métodos propios de actualización ni de borrado. Sin embargo, hereda
- * {@code delete} y {@code save} de {@link JpaRepository}: la inmutabilidad (RN-05) depende de que
- * {@code ReviewService} no los use, y de que {@code updatable = false} en la entidad.
- * <p>
- * {@code existsBy...} (REP-01) es el control previo a la inserción (RN-02). La garantía final frente
- * a duplicados es la restricción {@code uk_resena_usuario_pedido_tipo}: dos requests simultáneos pueden
- * pasar el control previo, y la BD rechaza el segundo (inferencia, a verificar con una prueba de concurrencia).
+ * ENT-01: acceso a la tabla resenas.
+ * RN-05: ReviewService no usa delete ni update, aunque JpaRepository los hereda.
+ * RN-02: existsBy... es el control previo; la garantía final es la restricción uk_resena_usuario_pedido_tipo.
  */
 public interface ResenaRepository extends JpaRepository<Resena, Long> {
 
-    // REP-01: (RN-02) Verificar que no exista ya una reseña antes de crearla
+    // REP-01 (CU-01, CU-02, RN-02): verifica que no exista ya una reseña del usuario para ese pedido y tipo
     boolean existsByUsuarioIdAndPedidoIdAndTipoObjetivo(Long usuarioId, Long pedidoId, TipoObjetivo tipoObjetivo);
-
-    // REP-02: Persistir la reseña validada (generada por default)
-
-    // REP-03: Reseñas de un comercio o repartidor
+    // REP-02 (CU-01, CU-02): persistir la reseña es el save() heredado de JpaRepository
+    // REP-03 (CU-03, CU-04): reseñas de un comercio o repartidor
     List<Resena> findByObjetivoIdAndTipoObjetivo(Long objetivoId, TipoObjetivo tipoObjetivo);
-
-    // Consulta por rango de fechas de creación. No tiene identificador REP en el código.
+    // REP-09 (CU-05, RN-03): reseñas creadas en el período, para el promedio y la cantidad del tablero.
+    // Desde es inclusivo y hasta es exclusivo
     List<Resena> findByFechaCreacionGreaterThanEqualAndFechaCreacionLessThan(
             LocalDateTime desde, LocalDateTime hasta);
 }
