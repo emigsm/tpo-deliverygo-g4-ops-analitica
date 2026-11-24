@@ -10,22 +10,22 @@ Java 25, Spring Boot 3.5.16, Spring Data JPA, Spring Security, H2, Springdoc Ope
 ## Arquitectura
 
 Controller → Service → Repository, con DTOs para contratos y clientes externos
-para aislar integraciones. [Arquitectura y decisiones](docs/tpo-apis-grupo-4-v1.5.md).
+para aislar integraciones. [Arquitectura y decisiones](docs/tpo-apis-grupo-4-v1.6.md).
 
 ## Casos de uso
 
 | CU | Nombre | Estado |
 | --- | --- | --- |
-| [CU-01](docs/tpo-apis-grupo-4-v1.5.md) | Calificar comercio | Implementado con mocks |
-| [CU-02](docs/tpo-apis-grupo-4-v1.5.md) | Calificar repartidor | Implementado con mocks |
-| [CU-03](docs/tpo-apis-grupo-4-v1.5.md) | Consultar promedio de comercio | Implementado |
-| [CU-04](docs/tpo-apis-grupo-4-v1.5.md) | Consultar promedio de repartidor | Implementado |
-| [CU-05](docs/tpo-apis-grupo-4-v1.5.md) | Generar tablero de métricas | Implementado con mock de Pedidos |
-| [CU-06](docs/tpo-apis-grupo-4-v1.5.md) | Registrar evento analítico | Implementado |
-| [CU-07](docs/tpo-apis-grupo-4-v1.5.md) | Consultar métricas por período | Implementado |
-| [CU-08](docs/tpo-apis-grupo-4-v1.5.md) | Analizar cantidad y estado de pedidos | Implementado (cancelados) |
-| [CU-09](docs/tpo-apis-grupo-4-v1.5.md) | Analizar pagos aprobados y rechazados | Implementado |
-| [CU-10](docs/tpo-apis-grupo-4-v1.5.md) | Analizar tiempos y entregas | Evolución pendiente |
+| [CU-01](docs/tpo-apis-grupo-4-v1.6.md) | Calificar comercio | Implementado con mocks |
+| [CU-02](docs/tpo-apis-grupo-4-v1.6.md) | Calificar repartidor | Implementado con mocks |
+| [CU-03](docs/tpo-apis-grupo-4-v1.6.md) | Consultar promedio de comercio | Implementado |
+| [CU-04](docs/tpo-apis-grupo-4-v1.6.md) | Consultar promedio de repartidor | Implementado |
+| [CU-05](docs/tpo-apis-grupo-4-v1.6.md) | Generar tablero de métricas | Implementado con mock de Pedidos |
+| [CU-06](docs/tpo-apis-grupo-4-v1.6.md) | Registrar evento analítico | Implementado |
+| [CU-07](docs/tpo-apis-grupo-4-v1.6.md) | Consultar métricas por período | Implementado |
+| [CU-08](docs/tpo-apis-grupo-4-v1.6.md) | Analizar cantidad y estado de pedidos | Implementado (cancelados) |
+| [CU-09](docs/tpo-apis-grupo-4-v1.6.md) | Analizar pagos aprobados y rechazados | Implementado |
+| [CU-10](docs/tpo-apis-grupo-4-v1.6.md) | Analizar tiempos y entregas | Evolución pendiente |
 
 ## API REST
 
@@ -40,9 +40,9 @@ para aislar integraciones. [Arquitectura y decisiones](docs/tpo-apis-grupo-4-v1.
 | — | `GET /api/v1/status` | Health check |
 
 [Swagger UI](http://localhost:8089/swagger-ui.html).
-[Contratos y ejemplos](docs/tpo-apis-grupo-4-v1.5.md).
+[Contratos y ejemplos](docs/tpo-apis-grupo-4-v1.6.md).
 [OpenAPI implementado](docs/api/openapi.yaml).
-Los errores manejados cambian de contrato: [tpo-apis-grupo-4-v1.5](docs/tpo-apis-grupo-4-v1.5.md).
+Los errores manejados cambian de contrato: [tpo-apis-grupo-4-v1.5](docs/tpo-apis-grupo-4-v1.6.md).
 
 ## Instalación y ejecución
 
@@ -162,11 +162,11 @@ solo tienen mock: sus contratos publicados no son compatibles con los ids de est
 (ver las brechas en el documento de APIs). Los eventos de Pedidos, Pagos y Logística ingresan por
 API-05 (CU-06) y se analizan en el tablero: ningún indicador depende de una consulta a otro
 módulo, y cada uno informa su `origen` y su `formula` (DM-21).
-[Detalle en el documento de APIs](docs/tpo-apis-grupo-4-v1.5.md).
+[Detalle en el documento de APIs](docs/tpo-apis-grupo-4-v1.6.md).
 
 ## Documentación
 
-- [TPO APIs Grupo 4 v1.5](docs/tpo-apis-grupo-4-v1.5.md): fuente de verdad (casos de uso, reglas de negocio,
+- [TPO APIs Grupo 4 v1.5](docs/tpo-apis-grupo-4-v1.6.md): fuente de verdad (casos de uso, reglas de negocio,
   modelo, decisiones, diagramas, servicios y contratos REST). Este README no repite ese contenido.
 
 ## Equipo
